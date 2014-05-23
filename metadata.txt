@@ -1,0 +1,38 @@
+# This file contains metadata for your plugin. Beginning
+# with version 1.8 this is the preferred way to supply information about a
+# plugin. The current method of embedding metadata in __init__.py will
+# be supported until version 2.0
+
+# This file should be included when you package your plugin.
+
+# Mandatory items:
+
+
+[general]
+name=Vector Bender
+qgisMinimumVersion=2.2
+description=Deforms vector to adapt them despite heavy and irregular deformations
+version=0.0
+author=Olivier Dalang
+email=olivier.dalang@gmail.com
+
+# end of mandatory metadata
+
+# Optional items:
+
+# Uncomment the following line and add your changelog entries:
+changelog=- 2014-05-22 - Version 0.0 : intial release
+
+# tags are comma separated with spaces allowed
+tags=vector,georeference,deform,adapt
+
+homepage=https://github.com/olivierdalang/VectorBender
+tracker=https://github.com/olivierdalang/VectorBender/issues
+repository=git@github.com:olivierdalang/VectorBender.git
+icon=resources/icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version
+deprecated=False
+

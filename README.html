@@ -1,0 +1,64 @@
+<h1><img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> VectorBender <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /></h1>
+
+<p>VectorBender is an <strong>EXPERIMENTAL</strong> QGIS Python plugin allowing to adjust vector layers that have complex non-uniform and non-linear deformations (historical maps, hand drawn sketches, poorly digitized layers...). Using this layer will <strong>INDUCE DEFORMATIONS</strong>. You should <strong>ONLY</strong> use this plugin if your data is already deformed, and not to accomplish CRS transformations nor linear/affine transformations.</p>
+
+<p><a href="https://vimeo.com/96142479">Have a look at the presentation video !</a></p>
+
+<h2>How to use</h2>
+
+<p>Launch VectorBender from the plugins menu or from the plugin toolbar.</p>
+
+<p>VectorBender works a bit like the georeferencer : you have to create pairs of points, the first one being the original location, and the second one being the target location.</p>
+
+<p>To do so, VectorBender uses plain Linestring layers. Each pair is defined by the starting point and ending point of a Line in this layer.
+You can either use one of your own Linestring layers, or use the <img src="resources/mActionCaptureLine.png" alt="create pairs layers" /> button from the VectorBender window. If you do so, I recommend installing the "Save memory layer" plugin which will allow to save your work in case of crash (you never now).</p>
+
+<p>The "buffer" parameters sets a buffer around the triangulation, so that the transformation ends more smoothely on the edges. Use the "toggle preview" button to see the effects.</p>
+
+<p>Once the layer to bend and the pairs layer are chosen, simply hit "run", and voilà ! the layer is modified.
+You can still undo / revert the changes if you like.</p>
+
+<h3>Unmet dependencies ?!</h3>
+
+<p>This plusing relies on :</p>
+
+<ul>
+<li>matplotlib 1.3.0</li>
+<li>scipy 0.14.0</li>
+</ul>
+
+<p>If you miss those libraries, you won't be able to use the plugin at all, and it will be grayed out.
+If you have older versions, it will probably not work (not tested).</p>
+
+<p>On Windows, they can be installed using OSGeo4W 64 bits version, in the libraries category.
+Please send me an email me if you encoutered this problem and solved it, so I can update this readme.</p>
+
+<h2>Feedback / Bugs / Contribute</h2>
+
+<p>Please report bugs and ideas on the issue tracker : https://github.com/olivierdalang/VectorBender/issues</p>
+
+<p>Or send me some feedback at : olivier.dalang@gmail.com</p>
+
+<h2>Version history</h2>
+
+<ul>
+<li>2014-05-22 - Version 0.0 : intial release</li>
+</ul>
+
+<h2>How it works (internatlly)</h2>
+
+<p>Here's how it works :</p>
+
+<p>Preparing the mesh</p>
+
+<ol>
+<li>Get a triangular mesh by doing a Delaunay triangulation of all original input points (starting points of the lines in the Vector Bender layer)</li>
+<li>Adapt this mesh on the ending points of the lines</li>
+<li>Get the convex hull of the points, offset it by some factor to have a smooth transition on the borders.</li>
+</ol>
+
+<p>Doing the transformation</p>
+
+<ol>
+<li>For each point of the target layer, find in which triangle it lies, and get it's barycentric coordinates in that triangle. apply those barycentric coordinates to the adapted mesh.</li>
+</ol>
