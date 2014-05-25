@@ -42,6 +42,7 @@ class VectorBenderHelp(QDialog):
         txt = QTextBrowser()
         txt.setReadOnly(True)
         txt.setSearchPaths([os.path.dirname(__file__)])
+        txt.setOpenExternalLinks(True)
         txt.setText( open(self.helpFile, 'r').read() )
 
         cls = QPushButton('Close')
