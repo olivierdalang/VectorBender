@@ -12,7 +12,7 @@
 name=Vector Bender
 qgisMinimumVersion=2.2
 description=Deforms vector to adapt them despite heavy and irregular deformations
-version=0.0
+version=0.1
 author=Olivier Dalang
 email=olivier.dalang@gmail.com
 
@@ -22,6 +22,7 @@ email=olivier.dalang@gmail.com
 
 # Uncomment the following line and add your changelog entries:
 changelog=- 2014-05-22 - Version 0.0 : intial release
+- 2014-05-25 - Version 0.1 : no more dependencies
 
 # tags are comma separated with spaces allowed
 tags=vector,georeference,deform,adapt

@@ -44,9 +44,24 @@ Or send me some feedback at : olivier.dalang@gmail.com
 ## Version history
 
 - 2014-05-22 - Version 0.0 : intial release
+- 2014-05-25 - Version 0.1 : scipy dependency no more needed, different style for pinned points
 
 
-## How it works (internatlly)
+## Roadmap
+
+### Confirmed
+
+- remove dependecy to matplotlib as well
+- allow to apply to selection only
+- allow to modify the PairsLayers so that every processed point becomes a pinned point, so it's possible to work more incrementally
+
+
+### Not confirmed
+
+- allow to use different algorithms ? (like TLS)
+
+
+## How it works (internally)
 
 Here's how it works :
 

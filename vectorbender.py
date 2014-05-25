@@ -27,6 +27,7 @@ from qgis.gui import *
 
 # Basic dependencies
 import os.path
+import sys
 import math
 from distutils.version import StrictVersion
 
@@ -40,14 +41,6 @@ try:
 except Exception, e:
     QgsMessageLog.logMessage("Matplotlib is missing !")
     dependenciesStatus = 0
-try:
-    import scipy.spatial
-    if StrictVersion(scipy.__version__) < StrictVersion('0.14.0'):
-        dependenciesStatus=1
-        QgsMessageLog.logMessage("Scipy version too old (%s instead of %s). Some things may not work as expected." % (scipy.__version__,'0.14.0'))
-except Exception, e:
-    QgsMessageLog.logMessage("Scipy is missing !")
-    dependenciesStatus = 0
 
 # Other classes
 from vectorbenderdialog import VectorBenderDialog
@@ -59,10 +52,8 @@ class VectorBender:
         self.iface = iface
         self.dlg = VectorBenderDialog(iface,self)
 
-        self.x_a = []
-        self.y_a = []
-        self.x_b = []
-        self.y_b = []
+        self.ptsA = []
+        self.ptsB = []
 
         self.delaunay = []
         self.aboutWindow = None
@@ -75,10 +66,6 @@ class VectorBender:
         self.action.triggered.connect(self.showUi)
         self.iface.addToolBarIcon(self.action)
         self.iface.addPluginToMenu(u"&Vector Bender", self.action)
-
-        if dependenciesStatus == 0:
-            self.action.setEnabled(False)
-            self.action.setText("Vector Bender (unmet dependencies)")
 
         self.helpAction = QAction( QIcon(os.path.join(os.path.dirname(__file__),'resources','about.png')), "Vector Bender Help", self.iface.mainWindow())
         self.helpAction.triggered.connect(self.showHelp)
@@ -114,37 +101,26 @@ class VectorBender:
 
     def loadDelaunay(self, pairsLayer, buff=0):
 
-        self.x_a = []
-        self.y_a = []
-        self.x_b = []
-        self.y_b = []
+        self.ptsA = []
+        self.ptsB = []
         ptsForHull = []
         for feature in pairsLayer.getFeatures():
             geom = feature.geometry().asPolyline()
-            self.x_a.append(geom[0].x())
-            self.y_a.append(geom[0].y())
-            self.x_b.append(geom[-1].x())
-            self.y_b.append(geom[-1].y())
-            ptsForHull.append( (geom[0].x(), geom[0].y()) )
-
+            self.ptsA.append( QgsPoint(geom[0].x(),geom[0].y()) )
+            self.ptsB.append( QgsPoint(geom[-1].x(),geom[-1].y()) )
 
         #we add a ring outside the hull so that the transformation smoothly stops
-        hullVrt = scipy.spatial.ConvexHull(ptsForHull).vertices
-        self.hull = []
-        for i in hullVrt:
-            self.hull.append( ptsForHull[i] )
+        self.hull = QgsGeometry.fromMultiPoint( self.ptsA ).convexHull()
 
         if buff>0:
-            self.expandedHull = expandPoly(self.hull,buff)
-            for p in self.expandedHull:
-                self.x_a.append(p[0])
-                self.y_a.append(p[1])
-                self.x_b.append(p[0])
-                self.y_b.append(p[1])
+            self.expandedHull = self.hull.buffer(buff, 3)
+            for p in self.expandedHull.asPolygon()[0]:
+                self.ptsA.append( p )
+                self.ptsB.append( p )
         else:
-            self.expandedHull = self.hull   
+            self.expandedHull = self.hull
 
-        self.delaunay = matplotlib.tri.Triangulation(self.x_a,self.y_a)
+        self.delaunay = matplotlib.tri.Triangulation([p.x() for p in self.ptsA],[p.y() for p in self.ptsA])
 
     def togglePreview(self):
 
@@ -183,26 +159,25 @@ class VectorBender:
             self.rubberBands[2].setWidth(1)
           
             #draw the expanded hull
-            for p in self.expandedHull:
-                self.rubberBands[0].addPoint( QgsPoint(p[0],p[1]), True, 0  )
-            for p in self.expandedHull[0:1]:
+            for p in self.expandedHull.asPolygon()[0]:
+                self.rubberBands[0].addPoint( p, True, 0  )
+            for p in self.expandedHull.asPolygon()[0][0:1]:
                 #we readd the first point since it's not possible to make true rings with rubberbands
-                self.rubberBands[0].addPoint( QgsPoint(p[0],p[1]), True, 0  )
+                self.rubberBands[0].addPoint( p, True, 0  )
 
             #draw the hull
-            for p in self.hull:
-                self.rubberBands[0].addPoint( QgsPoint(p[0],p[1]), True, 0  ) #inner ring of rubberband 1
-                self.rubberBands[1].addPoint( QgsPoint(p[0],p[1]), True, 0  )
-            for p in self.hull[0:1]:
+            for p in self.hull.asPolygon()[0]:
+                self.rubberBands[0].addPoint( p, True, 0  ) #inner ring of rubberband 1
+                self.rubberBands[1].addPoint( p, True, 0  )
+            for p in self.hull.asPolygon()[0][0:1]:
                 #we readd the first point since it's not possible to make true rings with rubberbands
-                self.rubberBands[0].addPoint( QgsPoint(p[0],p[1]), True, 0  )
+                self.rubberBands[0].addPoint( p, True, 0  )
 
             #draw the triangles
             for i,tri in enumerate(self.delaunay.triangles):
-                self.rubberBands[2].addPoint( QgsPoint(self.x_a[tri[0]],self.y_a[tri[0]]), False, i  )
-                self.rubberBands[2].addPoint( QgsPoint(self.x_a[tri[1]],self.y_a[tri[1]]), False, i  )
-                self.rubberBands[2].addPoint( QgsPoint(self.x_a[tri[2]],self.y_a[tri[2]]), True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop
-                
+                self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
+                self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
+                self.rubberBands[2].addPoint( self.ptsA[tri[0]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
 
     def run(self):
 
@@ -230,7 +205,7 @@ class VectorBender:
 
 
         # Loading the delaunay
-        self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.x_a) )
+        self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
         QCoreApplication.processEvents()
         self.loadDelaunay(pairsLayer, self.dlg.bufferValue())
         self.trifinder = self.delaunay.get_trifinder()
@@ -336,13 +311,13 @@ class VectorBender:
             return QgsPoint(p[0], p[1])
         else:
             # Triangle found : adapt it from the old mesh to the new mesh
-            a1 = (self.x_a[self.delaunay.triangles[tri][0]], self.y_a[self.delaunay.triangles[tri][0]])
-            a2 = (self.x_a[self.delaunay.triangles[tri][1]], self.y_a[self.delaunay.triangles[tri][1]])
-            a3 = (self.x_a[self.delaunay.triangles[tri][2]], self.y_a[self.delaunay.triangles[tri][2]])
+            a1 = self.ptsA[self.delaunay.triangles[tri][0]]
+            a2 = self.ptsA[self.delaunay.triangles[tri][1]]
+            a3 = self.ptsA[self.delaunay.triangles[tri][2]]
 
-            b1 = (self.x_b[self.delaunay.triangles[tri][0]], self.y_b[self.delaunay.triangles[tri][0]])
-            b2 = (self.x_b[self.delaunay.triangles[tri][1]], self.y_b[self.delaunay.triangles[tri][1]])
-            b3 = (self.x_b[self.delaunay.triangles[tri][2]], self.y_b[self.delaunay.triangles[tri][2]])
+            b1 = self.ptsB[self.delaunay.triangles[tri][0]]
+            b2 = self.ptsB[self.delaunay.triangles[tri][1]]
+            b3 = self.ptsB[self.delaunay.triangles[tri][2]]
 
             mappedP = mapPointFromTriangleAtoTriangleB(p, a1, a2, a3, b1, b2, b3)
 
@@ -359,9 +334,9 @@ def fromCartesianToTriangular(p, t1, t2, t3):
     """ Returns triangular coordinates (l1, l2, l3) for a given point in a given triangle """
     """ p is a duplet for cartesian coordinates coordinates """
     x,y = p
-    x1,y1 = t1
-    x2,y2 = t2
-    x3,y3 = t3
+    x1,y1 = t1.x(),t1.y()
+    x2,y2 = t2.x(),t2.y()
+    x3,y3 = t3.x(),t3.y()
     l1 = ((y2-y3)*(x-x3)+(x3-x2)*(y-y3))/((y2-y3)*(x1-x3)+(x3-x2)*(y1-y3))
     l2 = ((y3-y1)*(x-x3)+(x1-x3)*(y-y3))/((y2-y3)*(x1-x3)+(x3-x2)*(y1-y3))
     l3 = 1-l1-l2
@@ -369,72 +344,6 @@ def fromCartesianToTriangular(p, t1, t2, t3):
 
 def fromTriangularToCartesian(l,t1,t2,t3):
     """ l is a triplet for barycentric coordinates """
-    x = l[0]*t1[0]+l[1]*t2[0]+l[2]*t3[0]
-    y = l[0]*t1[1]+l[1]*t2[1]+l[2]*t3[1]
+    x = l[0]*t1.x()+l[1]*t2.x()+l[2]*t3.x()
+    y = l[0]*t1.y()+l[1]*t2.y()+l[2]*t3.y()
     return (x,y)
-
-def vecUnit(v):
-    l = math.sqrt(v[0] * v[0] + v[1] * v[1])
-    return ( v[0] / l, v[1] / l )
-
-def vecMul(v, s):
-    return ( v[0] * s, v[1] * s )
-
-def vecDot(v1, v2):
-    return v1[0] * v2[0] + v1[1] * v2[1]
-
-def vecRot90CW(v):
-    return ( v[1], -v[0] )
-
-def vecRot90CCW(v):
-    return ( -v[1], v[0] )
-
-def intersect(line1, line2):
-    a1 = line1[1][0] - line1[0][0]
-    b1 = line2[0][0] - line2[1][0]
-    c1 = line2[0][0] - line1[0][0]
-
-    a2 = line1[1][1] - line1[0][1]
-    b2 = line2[0][1] - line2[1][1]
-    c2 = line2[0][1] - line1[0][1]
-
-    t = (b1*c2 - b2*c1) / (a2*b1 - a1*b2)
-
-    return (
-        line1[0][0] + t * (line1[1][0] - line1[0][0]),
-        line1[0][1] + t * (line1[1][1] - line1[0][1])
-    )
-
-def expandPoly(p, distance):
-    expanded = [];
-
-    for i in range(0,len(p)):
-
-        # get this point (pt1), the point before it
-        # (pt0) and the point that follows it (pt2)
-        pt0 = p[ (i-1) if (i>0) else (len(p)-1) ]
-        pt1 = p[i]
-        pt2 = p[ (i+1) if (i<len(p)-1) else  0]
-
-        # find the line vectors of the lines going
-        # into the current point
-        v01 = ( pt1[0] - pt0[0], pt1[1] - pt0[1] )
-        v12 = ( pt2[0] - pt1[0], pt2[1] - pt1[1] )
-
-        # find the normals of the two lines, multiplied
-        # to the distance that polygon should inflate
-        d01 = vecMul(vecUnit(vecRot90CW(v01)), distance)
-        d12 = vecMul(vecUnit(vecRot90CW(v12)), distance)
-
-        # use the normals to find two points on the
-        # lines parallel to the polygon lines
-        ptx0  = ( pt0[0] + d01[0], pt0[1] + d01[1] )
-        ptx10 = ( pt1[0] + d01[0], pt1[1] + d01[1] )
-        ptx12 = ( pt1[0] + d12[0], pt1[1] + d12[1] )
-        ptx2  = ( pt2[0] + d12[0], pt2[1] + d12[1] )
-
-        # find the intersection of the two lines, and
-        # add it to the expanded polygon
-        expanded.append(intersect([ptx0, ptx10], [ptx12, ptx2]))
-    
-    return expanded
