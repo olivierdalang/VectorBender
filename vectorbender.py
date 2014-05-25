@@ -176,8 +176,8 @@ class VectorBender:
             #draw the triangles
             for i,tri in enumerate(self.delaunay.triangles):
                 self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
-                self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
-                self.rubberBands[2].addPoint( self.ptsA[tri[0]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
+                self.rubberBands[2].addPoint( self.ptsA[tri[1]], False, i  )
+                self.rubberBands[2].addPoint( self.ptsA[tri[2]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
 
     def run(self):
 
