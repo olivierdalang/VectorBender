@@ -31,6 +31,7 @@ class VectorBenderDialog(QWidget):
         self.editModeButton_pairsLayer.clicked.connect(self.checkRequirements)
         self.editModeButton_toBendLayer.clicked.connect(self.checkRequirements)
         self.comboBox_toBendLayer.activated.connect( self.checkRequirements )
+        self.pairsToPinsCheckBox.clicked.connect( self.checkRequirements )
 
         # When those are changed, we change the transformation type (which also checks the requirements)
 
@@ -88,8 +89,8 @@ class VectorBenderDialog(QWidget):
         if not tbl.isEditable():
             self.displayMsg( "The layer to bend must be in edit mode !", True )
             return
-        if not pl.isEditable():
-            self.displayMsg( "The pairs layer must be in edit mode !", True )
+        if not pl.isEditable() and self.pairsToPinsCheckBox.isChecked():
+            self.displayMsg( "The pairs layer must be in edit mode if you want to change pairs to pins !", True )
             return
         if self.stackedWidget.currentIndex() == 0:
             self.displayMsg("Impossible to run with an invalid transformation type.", True)
