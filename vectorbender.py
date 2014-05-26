@@ -19,6 +19,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+
 # Import the PyQt and QGIS libraries
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -29,20 +30,22 @@ from qgis.gui import *
 import os.path
 import sys
 import math
-from distutils.version import StrictVersion
 
 # More tricky dependencies
+from distutils.version import StrictVersion
 dependenciesStatus = 2 # 2: ok, 1: too old, 0: missing
 try:
     import matplotlib.tri
-    if StrictVersion(matplotlib.__version__) < StrictVersion('1.3.0'):
+    minVersion = '1.3.0'
+    if StrictVersion(matplotlib.__version__) < StrictVersion(minVersion):
         dependenciesStatus=1
-        QgsMessageLog.logMessage("Matplotlib version too old (%s instead of %s). Some things may not work as expected." % (matplotlib.__version__,'1.3.0'))
+        QgsMessageLog.logMessage("Matplotlib version too old (%s instead of %s). Some things may not work as expected." % (matplotlib.__version__,minVersion))
 except Exception, e:
     QgsMessageLog.logMessage("Matplotlib is missing !")
     dependenciesStatus = 0
 
 # Other classes
+from vectorbendertransformers import *
 from vectorbenderdialog import VectorBenderDialog
 from vectorbenderhelp import VectorBenderHelp
 
@@ -55,13 +58,10 @@ class VectorBender:
         self.ptsA = []
         self.ptsB = []
 
-        self.delaunay = None
-        self.linear = None
-        self.translation = None
+        self.transformer = None
 
         self.aboutWindow = None
 
-        self.rubberBands = None
 
     def initGui(self):
         
@@ -85,11 +85,6 @@ class VectorBender:
             self.dlg.close()
             self.dlg = None
 
-        if self.rubberBands is not None:
-            self.rubberBands[0].reset()
-            self.rubberBands[1].reset()
-            self.rubberBands[2].reset()
-
         if self.aboutWindow is not None:
             self.aboutWindow.close()
             self.aboutWindow = None
@@ -103,52 +98,13 @@ class VectorBender:
         self.dlg.raise_()
         self.dlg.refreshStates()
 
-    def loadDelaunay(self, pairsLayer, buff=0):
-
-        self.ptsA = []
-        self.ptsB = []
-        ptsForHull = []
-
-        features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
-
-        for feature in features:
-            geom = feature.geometry().asPolyline()
-            self.ptsA.append( QgsPoint(geom[0].x(),geom[0].y()) )
-            self.ptsB.append( QgsPoint(geom[-1].x(),geom[-1].y()) )
-
-        #we add a ring outside the hull so that the transformation smoothly stops
-        self.hull = QgsGeometry.fromMultiPoint( self.ptsA ).convexHull()
-
-        if buff>0:
-            self.expandedHull = self.hull.buffer(buff, 3)
-            for p in self.expandedHull.asPolygon()[0]:
-                self.ptsA.append( p )
-                self.ptsB.append( p )
-        else:
-            self.expandedHull = self.hull
-
-        self.delaunay = matplotlib.tri.Triangulation([p.x() for p in self.ptsA],[p.y() for p in self.ptsA])
-    def loadLinear(self, pairsLayer):
-        features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
-
-        u,v = None, None
-        for i,f in enumerate(features):  #we can't use features[0] and features[1] because QgsFeatureIterator object does not support indexing 
-            if u is None:
-                u = f.geometry().asPolyline()
-            elif v is None:
-                v = f.geometry().asPolyline()
-            else:
-                break
-        self.linear = ((u[0], u[-1]),(v[0], v[-1]))
-    def loadTranslation(self, pairsLayer):
-        features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
-        
-        for f in features:  #we can't use features[0] because QgsFeatureIterator object does not support indexing 
-            v = f.geometry().asPolyline()
-            self.translation = (v[-1].x()-v[0].x(), v[-1].y()-v[0].y())
-            break
-
     def determineTransformationType(self):
+        """Returns :
+            0 if no pairs Found
+            1 if one pair found => translation
+            2 if two pairs found => linear
+            3 if three or more pairs found => bending
+            4 if bending but unmet dependencies"""
 
         pairsLayer = self.dlg.pairsLayer()
 
@@ -162,67 +118,13 @@ class VectorBender:
         elif featuresCount == 2:
             return 2
         elif featuresCount >= 3:
-            return 3
+            if dependenciesStatus != 2:
+                return 4
+            else:
+                return 3
 
         return 0
-
     
-
-    def hidePreview(self):
-        if self.rubberBands is not None:
-            self.rubberBands[0].reset(QGis.Polygon)
-            self.rubberBands[1].reset(QGis.Polygon)
-            self.rubberBands[2].reset(QGis.Polygon)
-            self.rubberBands = None
-
-    def showPreview(self):
-
-        self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon))
-
-        self.rubberBands[0].reset(QGis.Polygon)
-        self.rubberBands[1].reset(QGis.Polygon)
-        self.rubberBands[2].reset(QGis.Polygon)
-
-        pairsLayer = self.dlg.pairsLayer()
-        if pairsLayer is None:
-            self.dlg.statusLabel.setText( "You must select a vector-line layer which defines the points pairs !" )
-            return
-
-        self.loadDelaunay(pairsLayer, self.dlg.bufferValue())
-
-        self.rubberBands[0].setColor(QColor(0,125,255))
-        self.rubberBands[1].setColor(QColor(255,125,0))
-        self.rubberBands[2].setColor(QColor(0,125,0,50))
-
-        self.rubberBands[0].setBrushStyle(Qt.Dense6Pattern)
-        self.rubberBands[1].setBrushStyle(Qt.Dense6Pattern)
-        self.rubberBands[2].setBrushStyle(Qt.NoBrush)
-
-        self.rubberBands[0].setWidth(3)
-        self.rubberBands[1].setWidth(3)
-        self.rubberBands[2].setWidth(1)
-      
-        #draw the expanded hull
-        for p in self.expandedHull.asPolygon()[0]:
-            self.rubberBands[0].addPoint( p, True, 0  )
-        for p in self.expandedHull.asPolygon()[0][0:1]:
-            #we readd the first point since it's not possible to make true rings with rubberbands
-            self.rubberBands[0].addPoint( p, True, 0  )
-
-        #draw the hull
-        for p in self.hull.asPolygon()[0]:
-            self.rubberBands[0].addPoint( p, True, 0  ) #inner ring of rubberband 1
-            self.rubberBands[1].addPoint( p, True, 0  )
-        for p in self.hull.asPolygon()[0][0:1]:
-            #we readd the first point since it's not possible to make true rings with rubberbands
-            self.rubberBands[0].addPoint( p, True, 0  )
-
-        #draw the triangles
-        for i,tri in enumerate(self.delaunay.triangles):
-            self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
-            self.rubberBands[2].addPoint( self.ptsA[tri[1]], False, i  )
-            self.rubberBands[2].addPoint( self.ptsA[tri[2]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
-
     def run(self):
 
         self.dlg.progressBar.setValue( 0 )
@@ -233,17 +135,17 @@ class VectorBender:
         transType = self.determineTransformationType()
 
         # Loading the delaunay
+        restrictToSelection = self.dlg.restrictBox_pairsLayer.isChecked()
         if transType==3:
             self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
             QCoreApplication.processEvents()
-            self.loadDelaunay(pairsLayer, self.dlg.bufferValue())
-            self.trifinder = self.delaunay.get_trifinder()
+            self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )
         elif transType==2:
             self.dlg.displayMsg( "Loading linear transformation vectors..."  )
-            self.loadLinear(pairsLayer)
+            self.transformer = LinearTransformer( pairsLayer, restrictToSelection )
         elif transType==1:
             self.dlg.displayMsg( "Loading translation vector..."  )
-            self.loadTranslation(pairsLayer)
+            self.transformer = TranslationTransformer( pairsLayer, restrictToSelection )
         else:
             self.dlg.displayMsg( "INVALID TRANSFORMATION TYPE - YOU SHOULDN'T HAVE BEEN ABLE TO HIT RUN" )
             return
@@ -251,7 +153,7 @@ class VectorBender:
         # Starting to iterate
         features = toBendLayer.getFeatures() if not self.dlg.restrictBox_toBendLayer.isChecked() else toBendLayer.selectedFeatures()
 
-        count = toBendLayer.featureCount() if not self.dlg.restrictBox_toBendLayer.isChecked() else len(features)
+        count = toBendLayer.pendingFeatureCount() if not self.dlg.restrictBox_toBendLayer.isChecked() else len(features)
         self.dlg.displayMsg( "Starting to iterate through %i features..." % count )
         QCoreApplication.processEvents()
 
@@ -271,14 +173,14 @@ class VectorBender:
                 if not geom.isMultipart():
                     # SINGLE PART POINT
                     p = goem.asPoint()
-                    newGeom = QgsGeometry.fromPoint( self.mapPoint(p, transType) )
+                    newGeom = QgsGeometry.fromPoint( self.transformer.map(p) )
 
                 else:
                     # MULTI PART POINT
                     listA = geom.asMultiPoint()
                     newListA = []
                     for p in listA:
-                        newListA.append( self.mapPoint(p, transType) )
+                        newListA.append( self.transformer.map(p) )
                     newGeom = QgsGeometry.fromMultiPoint( newListA )
 
             elif geom.type() == QGis.Line:
@@ -288,7 +190,7 @@ class VectorBender:
                     listA = geom.asPolyline()
                     newListA = []
                     for p in listA:
-                        newListA.append( self.mapPoint(p, transType) )
+                        newListA.append( self.transformer.map(p) )
                     newGeom = QgsGeometry.fromPolyline( newListA )
 
                 else:
@@ -298,7 +200,7 @@ class VectorBender:
                     for listB in listA:
                         newListB = []
                         for p in listB:
-                            newListB.append( self.mapPoint(p, transType) )
+                            newListB.append( self.transformer.map(p) )
                         newListA.append( newListB )
                     newGeom = QgsGeometry.fromMultiPolyline( newListA )
 
@@ -311,7 +213,7 @@ class VectorBender:
                     for listB in listA:
                         newListB = []
                         for p in listB:
-                            newListB.append( self.mapPoint(p, transType) )
+                            newListB.append( self.transformer.map(p) )
                         newListA.append( newListB )
                     newGeom = QgsGeometry.fromPolygon( newListA )
 
@@ -324,7 +226,7 @@ class VectorBender:
                         for listC in listB:
                             newListC = []
                             for p in listC:
-                                newListC.append( self.mapPoint(p, transType) )
+                                newListC.append( self.transformer.map(p) )
                             newListB.append( newListC )
                         newListA.append( newListB )
                     newGeom = QgsGeometry.fromMultiPolygon( newListA )
@@ -336,6 +238,7 @@ class VectorBender:
             toBendLayer.changeGeometry( feature.id(), newGeom )
 
         toBendLayer.endEditCommand()
+        toBendLayer.repaintRequested.emit()
 
 
         #Transforming pairs to pins
@@ -343,7 +246,7 @@ class VectorBender:
 
             features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
 
-            count = pairsLayer.featureCount() if not self.dlg.restrictBox_pairsLayer.isChecked() else len(features)
+            count = pairsLayer.pendingFeatureCount() if not self.dlg.restrictBox_pairsLayer.isChecked() else len(features)
             self.dlg.progressBar.setValue( 0 )
             self.dlg.displayMsg( "Starting to transform %i pairs to pins..." % count )
             QCoreApplication.processEvents()
@@ -366,71 +269,3 @@ class VectorBender:
         self.dlg.progressBar.setValue( 100 )
         pairsLayer.repaintRequested.emit()
 
-    def mapPoint(self, p, transType):
-
-        if transType == 3:
-            return self.mapPointBend(p)
-        if transType == 2:
-            return self.mapPointLinear(p)
-        if transType == 1:
-            return self.mapPointTranslate(p)
-
-        return QgsPoint(p[0], p[1])
-
-    def mapPointBend(self, p):
-
-        tri = self.trifinder( p[0], p[1] )
-
-        if tri==-1:
-            # No triangle found : don't change the point
-            return QgsPoint(p[0], p[1])
-        else:
-            # Triangle found : adapt it from the old mesh to the new mesh
-            a1 = self.ptsA[self.delaunay.triangles[tri][0]]
-            a2 = self.ptsA[self.delaunay.triangles[tri][1]]
-            a3 = self.ptsA[self.delaunay.triangles[tri][2]]
-
-            b1 = self.ptsB[self.delaunay.triangles[tri][0]]
-            b2 = self.ptsB[self.delaunay.triangles[tri][1]]
-            b3 = self.ptsB[self.delaunay.triangles[tri][2]]
-
-            mappedP = mapPointFromTriangleAtoTriangleB(p, a1, a2, a3, b1, b2, b3)
-
-            return QgsPoint(mappedP[0], mappedP[1])
-        
-    def mapPointLinear(self, p):
-        return QgsPoint(p[0], p[1])
-        
-    def mapPointTranslate(self, p):
-        return QgsPoint(p[0]+self.translation[0], p[1]+self.translation[1])
-
-
-
-
-
-def mapPointFromTriangleAtoTriangleB(p, a1,a2,a3, b1,b2,b3 ):
-    cT = fromCartesianToTriangular( p, a1, a2, a3  )
-    cC = fromTriangularToCartesian( cT, b1, b2, b3  )
-    return cC
-
-def fromCartesianToTriangular(p, t1, t2, t3):
-    """ Returns triangular coordinates (l1, l2, l3) for a given point in a given triangle """
-    """ p is a duplet for cartesian coordinates coordinates """
-    x,y = p
-    x1,y1 = t1.x(),t1.y()
-    x2,y2 = t2.x(),t2.y()
-    x3,y3 = t3.x(),t3.y()
-    l1 = ((y2-y3)*(x-x3)+(x3-x2)*(y-y3))/((y2-y3)*(x1-x3)+(x3-x2)*(y1-y3))
-    l2 = ((y3-y1)*(x-x3)+(x1-x3)*(y-y3))/((y2-y3)*(x1-x3)+(x3-x2)*(y1-y3))
-    l3 = 1-l1-l2
-    return (l1,l2,l3)
-
-def fromTriangularToCartesian(l,t1,t2,t3):
-    """ l is a triplet for barycentric coordinates """
-    x = l[0]*t1.x()+l[1]*t2.x()+l[2]*t3.x()
-    y = l[0]*t1.y()+l[1]*t2.y()+l[2]*t3.y()
-    return (x,y)
-
-
-
-        

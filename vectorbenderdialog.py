@@ -5,7 +5,11 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from qgis.core import *
+from qgis.gui import *
+
 import os.path
+
+from vectorbendertransformers import *
 
 
 class VectorBenderDialog(QWidget):
@@ -18,13 +22,18 @@ class VectorBenderDialog(QWidget):
         self.iface = iface
         self.vb = vb
 
+        # Keeps three rubberbands for delaunay's peview
+        self.rubberBands = None
+
         # Connect the UI buttons
         self.createMemoryLayerButton.clicked.connect(self.createMemoryLayer)
 
-        self.previewButton.pressed.connect(self.vb.showPreview)
-        self.previewButton.released.connect(self.vb.hidePreview)
+        self.previewButton.pressed.connect(self.showPreview)
+        self.previewButton.released.connect(self.hidePreview)
+
         self.editModeButton_toBendLayer.clicked.connect(self.toggleEditMode_toBendLayer)
         self.editModeButton_pairsLayer.clicked.connect(self.toggleEditMode_pairsLayer)
+
         self.runButton.clicked.connect(self.vb.run)
 
         # When those are changed, we recheck the requirements
@@ -34,29 +43,39 @@ class VectorBenderDialog(QWidget):
         self.pairsToPinsCheckBox.clicked.connect( self.checkRequirements )
 
         # When those are changed, we change the transformation type (which also checks the requirements)
-
         self.comboBox_toBendLayer.activated.connect( self.updateEditState_toBendLayer )
         self.comboBox_pairsLayer.activated.connect( self.updateEditState_pairsLayer )
         self.comboBox_pairsLayer.activated.connect( self.updateTransformationType )
         self.restrictBox_pairsLayer.stateChanged.connect( self.updateTransformationType )
 
-        # Create an event filter to update when focus
+        # Create an event filter to update on focus
         self.installEventFilter(self)
 
+
+    # UI Getters
     def toBendLayer(self):
+        """
+        Returns the current toBend layer depending on what is choosen in the comboBox_pairsLayer
+        """
         layerId = self.comboBox_toBendLayer.itemData(self.comboBox_toBendLayer.currentIndex())
         return QgsMapLayerRegistry.instance().mapLayer(layerId)
     def pairsLayer(self):
+        """
+        Returns the current pairsLayer layer depending on what is choosen in the comboBox_pairsLayer
+        """
         layerId = self.comboBox_pairsLayer.itemData(self.comboBox_pairsLayer.currentIndex())
         return QgsMapLayerRegistry.instance().mapLayer(layerId)
     def bufferValue(self):
+        """
+        Returns the current buffer value depending on the input in the spinbox
+        """
         return self.bufferSpinBox.value()
 
-    def updateEditState(self):
-        if self.toBendLayer() is not None:
-            self.toggleEditModeButton.setChecked( self.toBendLayer().isEditable() )
-
+    # Updaters
     def refreshStates(self):
+        """
+        Updates the UI values, to be used upon opening / activating the window
+        """
 
         # Update the comboboxes
         self.updateLayersComboboxes()
@@ -67,10 +86,10 @@ class VectorBenderDialog(QWidget):
 
         # Update the transformation type
         self.updateTransformationType()
-
-
-
     def checkRequirements(self):
+        """
+        To be run after changes have been made to the UI. It enables/disables the run button and display some messages.
+        """
         # Checkin requirements
         self.runButton.setEnabled(False)
 
@@ -94,15 +113,14 @@ class VectorBenderDialog(QWidget):
             return
         if self.stackedWidget.currentIndex() == 0:
             self.displayMsg("Impossible to run with an invalid transformation type.", True)
-            return
+            return            
         self.displayMsg("Ready to go...")
         self.runButton.setEnabled(True)
 
-
-
-
-
     def updateLayersComboboxes(self):
+        """
+        Recreate the comboboxes to display existing layers.
+        """
         oldBendLayer = self.toBendLayer()
         oldPairsLayer = self.pairsLayer()
 
@@ -120,42 +138,28 @@ class VectorBenderDialog(QWidget):
         if oldPairsLayer is not None:
             index = self.comboBox_pairsLayer.findData(oldPairsLayer.id())
             self.comboBox_pairsLayer.setCurrentIndex( index )
-
     def updateEditState_pairsLayer(self):
+        """
+        Update the edit state button for pairsLayer
+        """
         l = self.pairsLayer()
         self.editModeButton_pairsLayer.setChecked( False if (l is None or not l.isEditable()) else True )
-
     def updateEditState_toBendLayer(self):
+        """
+        Update the edit state button for toBendLayer
+        """
         l = self.toBendLayer()
         self.editModeButton_toBendLayer.setChecked( False if (l is None or not l.isEditable()) else True )
-
     def updateTransformationType(self):
+        """
+        Update the stacked widget to display the proper transformation type. Also runs checkRequirements() 
+        """
         tt = self.vb.determineTransformationType()
         self.stackedWidget.setCurrentIndex( tt )
 
         self.checkRequirements()
 
-
-
-
-    def createMemoryLayer(self):
-        suffix = ""
-        name = "Vector Bender"
-        while len( QgsMapLayerRegistry.instance().mapLayersByName( name+suffix ) ) > 0:
-            if suffix == "": suffix = " 1"
-            else: suffix = " "+str(int(suffix)+1)
-
-        newMemoryLayer = QgsVectorLayer("Linestring", name+suffix, "memory")
-        newMemoryLayer.loadNamedStyle(os.path.join(os.path.dirname(__file__),'PairStyle.qml'), False)
-        QgsMapLayerRegistry.instance().addMapLayer(newMemoryLayer)
-
-        self.updateLayersComboboxes()
-
-        index = self.comboBox_pairsLayer.findData(newMemoryLayer.id())
-        self.comboBox_pairsLayer.setCurrentIndex( index )
-        
-        newMemoryLayer.startEditing()
-
+    # Togglers
     def toggleEditMode(self, checked, toBendLayer_True_pairsLayer_False):
         l = self.toBendLayer() if toBendLayer_True_pairsLayer_False else self.pairsLayer()
         if l is None:
@@ -178,13 +182,89 @@ class VectorBenderDialog(QWidget):
     def toggleEditMode_pairsLayer(self, checked):
         self.toggleEditMode(checked, False)
 
+    # Misc
+    def createMemoryLayer(self):
+        """
+        Creates a new memory layer to be used as pairLayer, and selects it in the ComboBox.
+        """
+
+        suffix = ""
+        name = "Vector Bender"
+        while len( QgsMapLayerRegistry.instance().mapLayersByName( name+suffix ) ) > 0:
+            if suffix == "": suffix = " 1"
+            else: suffix = " "+str(int(suffix)+1)
+
+        newMemoryLayer = QgsVectorLayer("Linestring", name+suffix, "memory")
+        newMemoryLayer.loadNamedStyle(os.path.join(os.path.dirname(__file__),'PairStyle.qml'), False)
+        QgsMapLayerRegistry.instance().addMapLayer(newMemoryLayer)
+
+        self.updateLayersComboboxes()
+
+        index = self.comboBox_pairsLayer.findData(newMemoryLayer.id())
+        self.comboBox_pairsLayer.setCurrentIndex( index )
+        
+        newMemoryLayer.startEditing()  
     def displayMsg(self, msg, error=False):
         if error:
             #QApplication.beep()
             msg = "<font color='red'>"+msg+"</font>"
-        self.statusLabel.setText( msg )
+        self.statusLabel.setText( msg )  
+    def hidePreview(self):
+        if self.rubberBands is not None:
+            self.rubberBands[0].reset(QGis.Polygon)
+            self.rubberBands[1].reset(QGis.Polygon)
+            self.rubberBands[2].reset(QGis.Polygon)
+            self.rubberBands = None
+    def showPreview(self):
 
+        self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon))
+
+        self.rubberBands[0].reset(QGis.Polygon)
+        self.rubberBands[1].reset(QGis.Polygon)
+        self.rubberBands[2].reset(QGis.Polygon)
+
+        pairsLayer = self.pairsLayer()
+
+        transformer = BendTransformer( pairsLayer, self.restrictBox_pairsLayer.isChecked() ,self.bufferValue() )
+
+        self.rubberBands[0].setColor(QColor(0,125,255))
+        self.rubberBands[1].setColor(QColor(255,125,0))
+        self.rubberBands[2].setColor(QColor(0,125,0,50))
+
+        self.rubberBands[0].setBrushStyle(Qt.Dense6Pattern)
+        self.rubberBands[1].setBrushStyle(Qt.Dense6Pattern)
+        self.rubberBands[2].setBrushStyle(Qt.NoBrush)
+
+        self.rubberBands[0].setWidth(3)
+        self.rubberBands[1].setWidth(3)
+        self.rubberBands[2].setWidth(1)
+      
+        #draw the expanded hull
+        if transformer.expandedHull is not None:
+            for p in transformer.expandedHull.asPolygon()[0]:
+                self.rubberBands[0].addPoint( p, True, 0  )
+            for p in transformer.expandedHull.asPolygon()[0][0:1]:
+                #we readd the first point since it's not possible to make true rings with rubberbands
+                self.rubberBands[0].addPoint( p, True, 0  )
+
+        #draw the hull
+        for p in transformer.hull.asPolygon()[0]:
+            self.rubberBands[0].addPoint( p, True, 0  ) #inner ring of rubberband 1
+            self.rubberBands[1].addPoint( p, True, 0  )
+        for p in transformer.hull.asPolygon()[0][0:1]:
+            #we readd the first point since it's not possible to make true rings with rubberbands
+            self.rubberBands[0].addPoint( p, True, 0  )
+
+        #draw the triangles
+        for i,tri in enumerate(transformer.delaunay.triangles):
+            self.rubberBands[2].addPoint( transformer.pointsA[tri[0]], False, i  )
+            self.rubberBands[2].addPoint( transformer.pointsA[tri[1]], False, i  )
+            self.rubberBands[2].addPoint( transformer.pointsA[tri[2]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
+
+    # Events
     def eventFilter(self,object,event):
         if event.type() == QEvent.FocusIn:
             self.refreshStates()
         return False
+
+

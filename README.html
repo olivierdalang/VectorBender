@@ -1,8 +1,10 @@
 <h1><img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> VectorBender <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /> <img src="resources/icon.png" alt="create pairs layers" /></h1>
 
-<p>VectorBender is an <strong>EXPERIMENTAL</strong> QGIS Python plugin allowing to adjust vector layers that have complex non-uniform and non-linear deformations (historical maps, hand drawn sketches, poorly digitized layers...). Using this layer will <strong>INDUCE DEFORMATIONS</strong>. You should <strong>ONLY</strong> use this plugin if your data is already deformed, and not to accomplish CRS transformations nor linear/affine transformations.</p>
+<p>VectorBender is an <strong>EXPERIMENTAL</strong> QGIS Python plugin allowing to transform vector layers to match another geometry. Depening on the number of input points defined, the plugin chooses on of the three transformation types : translation, uniform, or bending.</p>
 
-<p><a href="https://vimeo.com/96142479">Have a look at the presentation video !</a></p>
+<p>The first two allow for quick alignement of non georeferenced data, where as the third allows to match data that has complex non-uniform and non-linear deformations (historical maps, hand drawn sketches, poorly digitized layers...). </p>
+
+<p><a href="https://vimeo.com/96142479">Have a look at version 0.1 presentation video !</a></p>
 
 <h2>How to use</h2>
 
@@ -11,27 +13,42 @@
 <p>VectorBender works a bit like the georeferencer : you have to create pairs of points, the first one being the original location, and the second one being the target location.</p>
 
 <p>To do so, VectorBender uses plain Linestring layers. Each pair is defined by the starting point and ending point of a Line in this layer.
-You can either use one of your own Linestring layers, or use the <img src="resources/mActionCaptureLine.png" alt="create pairs layers" /> button from the VectorBender window. If you do so, I recommend installing the "Save memory layer" plugin which will allow to save your work in case of crash (you never now).</p>
+You can either use one of your own Linestring layers, or use the <img src="resources/mActionCaptureLine.png" alt="create pairs layers" /> button from the VectorBender window.</p>
 
-<p>The "buffer" parameters sets a buffer around the triangulation, so that the transformation ends more smoothely on the edges. Use the "toggle preview" button to see the effects.</p>
+<p>If you use VectorBender's layers, I recommend installing the "Save memory layer" plugin which will allow to save your work.</p>
+
+<p>Depending on the number of created (or selected, if you choose "restrict to selection") pairs, one of the three methods (explained below) will be used.</p>
+
+<p>Checking the "change pairs to pins" checkbox will transform every inputted pair into a pin, allowing to work in an incremental way very efficiently.</p>
 
 <p>Once the layer to bend and the pairs layer are chosen, simply hit "run", and voilà ! the layer is modified.
 You can still undo / revert the changes if you like.</p>
 
-<h3>Unmet dependencies ?!</h3>
+<h3>Translation (exactly 1 pair defined/seleced)</h3>
 
-<p>This plusing relies on :</p>
+<p>The vector layer will simply be offsetted according to the pair of points.</p>
 
-<ul>
-<li>matplotlib 1.3.0</li>
-<li>scipy 0.14.0</li>
-</ul>
+<h3>Uniform (exactly 2 pairs defined/seleced)</h3>
 
-<p>If you miss those libraries, you won't be able to use the plugin at all, and it will be grayed out.
-If you have older versions, it will probably not work (not tested).</p>
+<p>The vector layer will be translated, scaled (uniformly), and rotated so that both pairs match</p>
 
-<p>On Windows, they can be installed using OSGeo4W 64 bits version, in the libraries category.
-Please send me an email me if you encoutered this problem and solved it, so I can update this readme.</p>
+<h3>Bending (3 or more pairs defined/selected)</h3>
+
+<p>The first points of all pairs will be triangulated, and this triangulation will be mapped on the last points of all pairs. The vector layer will then be deformed by matching the triangulation.</p>
+
+<p>The "buffer" parameters sets a buffer around the triangulation, so that the transformation ends more smoothely on the edges. Hold the "preview" button to see the size of the buffer.</p>
+
+<p>Using this method will <strong>INDUCE DEFORMATIONS</strong>. You should <strong>ONLY</strong> use it if your data is already deformed, and not to accomplish CRS transformations nor linear/affine transformations.</p>
+
+<h3>Bending transformation unavailable because you miss dependencies ?!</h3>
+
+<p>This plusing relies on matplotlib 1.3.0</p>
+
+<p>If you miss this library or have an old version of it, you won't be able to use the bending transformation.</p>
+
+<p>On Windows, it can be installed using OSGeo4W 64 bits version (found in the libraries category).</p>
+
+<p>Please send me an email me if you encoutered this problem and solved it, so I can update this readme.</p>
 
 <h2>Feedback / Bugs / Contribute</h2>
 
@@ -43,23 +60,15 @@ Please send me an email me if you encoutered this problem and solved it, so I ca
 
 <ul>
 <li>2014-05-22 - Version 0.0 : intial release</li>
-<li>2014-05-25 - Version 0.1 : scipy dependency no more needed, different style for pinned points</li>
+<li>2014-05-26 - Version 0.1 : linear and uniform transformation method, scipy dependency no more needed, better management of pinned points</li>
 </ul>
 
 <h2>Roadmap</h2>
 
-<h3>Confirmed</h3>
-
-<ul>
-<li>remove dependecy to matplotlib as well</li>
-<li>allow to apply to selection only</li>
-<li>allow to modify the PairsLayers so that every processed point becomes a pinned point, so it's possible to work more incrementally</li>
-</ul>
-
 <h3>Not confirmed</h3>
 
 <ul>
-<li>allow to use different algorithms ? (like TLS)</li>
+<li>remove matplotlib dependency</li>
 </ul>
 
 <h2>How it works (internally)</h2>

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>631</width>
-    <height>311</height>
+    <width>654</width>
+    <height>321</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -139,6 +139,33 @@
      </item>
     </layout>
    </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_5">
+     <property name="text">
+      <string>Change pairs to pins</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QCheckBox" name="pairsToPinsCheckBox">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>22</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>(not recommended if you restrict to selection)</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
    <item row="3" column="0" colspan="2">
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
@@ -148,7 +175,7 @@
       <item>
        <widget class="QStackedWidget" name="stackedWidget">
         <property name="currentIndex">
-         <number>0</number>
+         <number>4</number>
         </property>
         <widget class="QWidget" name="page_0">
          <layout class="QHBoxLayout" name="horizontalLayout_7">
@@ -300,6 +327,26 @@
           </item>
          </layout>
         </widget>
+        <widget class="QWidget" name="page">
+         <layout class="QHBoxLayout" name="horizontalLayout_10">
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color:#F00</string>
+            </property>
+            <property name="text">
+             <string>Bending transformation unavailable because you miss dependencies. Please read the help.</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
        </widget>
       </item>
      </layout>
@@ -353,33 +400,6 @@
       </size>
      </property>
     </spacer>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_5">
-     <property name="text">
-      <string>Change pairs to pins</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QCheckBox" name="pairsToPinsCheckBox">
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>22</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>(not recommended if you restrict to selection)</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </item>
   </layout>
  </widget>
