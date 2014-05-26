@@ -12,64 +12,128 @@ class VectorBenderDialog(QWidget):
     def __init__(self, iface, vb):
         QWidget.__init__(self)
         uic.loadUi(os.path.join(os.path.dirname(__file__),'ui_main.ui'), self)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint) #TODO : is there a way to have the window not on top of other applications ?
+        self.setFocusPolicy(Qt.ClickFocus)
+        #self.setWindowModality( Qt.ApplicationModal )
 
         self.iface = iface
         self.vb = vb
 
-        self.updateLayersComboboxes()
-        self.updateEditState()
-
-        QgsMapLayerRegistry.instance().layersAdded.connect( self.updateLayersComboboxes )
-        QgsMapLayerRegistry.instance().layersRemoved.connect( self.updateLayersComboboxes )
-
+        # Connect the UI buttons
         self.createMemoryLayerButton.clicked.connect(self.createMemoryLayer)
 
-        self.previewButton.clicked.connect(self.vb.togglePreview)
-        self.toggleEditModeButton.clicked.connect(self.toggleEditMode)
+        self.previewButton.pressed.connect(self.vb.showPreview)
+        self.previewButton.released.connect(self.vb.hidePreview)
+        self.editModeButton_toBendLayer.clicked.connect(self.toggleEditMode_toBendLayer)
+        self.editModeButton_pairsLayer.clicked.connect(self.toggleEditMode_pairsLayer)
         self.runButton.clicked.connect(self.vb.run)
 
-        self.bufferSpinBox.valueChanged.connect( self.vb.updatePreview )
+        # When those are changed, we recheck the requirements
+        self.editModeButton_pairsLayer.clicked.connect(self.checkRequirements)
+        self.editModeButton_toBendLayer.clicked.connect(self.checkRequirements)
+        self.comboBox_toBendLayer.activated.connect( self.checkRequirements )
 
-        self.layerToBendComboBox.currentIndexChanged.connect( self.updateEditState )
+        # When those are changed, we change the transformation type (which also checks the requirements)
 
-    def layerToBend(self):
-        layerId = self.layerToBendComboBox.itemData(self.layerToBendComboBox.currentIndex())
+        self.comboBox_toBendLayer.activated.connect( self.updateEditState_toBendLayer )
+        self.comboBox_pairsLayer.activated.connect( self.updateEditState_pairsLayer )
+        self.comboBox_pairsLayer.activated.connect( self.updateTransformationType )
+        self.restrictBox_pairsLayer.stateChanged.connect( self.updateTransformationType )
+
+        # Create an event filter to update when focus
+        self.installEventFilter(self)
+
+    def toBendLayer(self):
+        layerId = self.comboBox_toBendLayer.itemData(self.comboBox_toBendLayer.currentIndex())
         return QgsMapLayerRegistry.instance().mapLayer(layerId)
     def pairsLayer(self):
-        layerId = self.pairsLayerComboBox.itemData(self.pairsLayerComboBox.currentIndex())
+        layerId = self.comboBox_pairsLayer.itemData(self.comboBox_pairsLayer.currentIndex())
         return QgsMapLayerRegistry.instance().mapLayer(layerId)
     def bufferValue(self):
         return self.bufferSpinBox.value()
 
     def updateEditState(self):
-        if self.layerToBend() is not None:
-            self.toggleEditModeButton.setChecked( self.layerToBend().isEditable() )
+        if self.toBendLayer() is not None:
+            self.toggleEditModeButton.setChecked( self.toBendLayer().isEditable() )
 
-    def show(self):
-        self.updateEditState()
+    def refreshStates(self):
+
+        # Update the comboboxes
         self.updateLayersComboboxes()
-        QWidget.show(self)
+
+        # Update the edit mode buttons
+        self.updateEditState_pairsLayer()
+        self.updateEditState_toBendLayer()
+
+        # Update the transformation type
+        self.updateTransformationType()
+
+
+
+    def checkRequirements(self):
+        # Checkin requirements
+        self.runButton.setEnabled(False)
+
+        tbl = self.toBendLayer()
+        pl = self.pairsLayer()
+
+        if tbl is None:
+            self.displayMsg( "You must select a vector layer to bend !", True )
+            return
+        if pl is None:
+            self.displayMsg( "You must select a vector (line) layer which defines the points pairs !", True )
+            return
+        if pl is tbl:
+            self.displayMsg( "The layer to bend must be different from the pairs layer !", True )
+            return            
+        if not tbl.isEditable():
+            self.displayMsg( "The layer to bend must be in edit mode !", True )
+            return
+        if not pl.isEditable():
+            self.displayMsg( "The pairs layer must be in edit mode !", True )
+            return
+        if self.stackedWidget.currentIndex() == 0:
+            self.displayMsg("Impossible to run with an invalid transformation type.", True)
+            return
+        self.displayMsg("Ready to go...")
+        self.runButton.setEnabled(True)
+
+
+
 
 
     def updateLayersComboboxes(self):
-        oldBendLayer = self.layerToBend()
+        oldBendLayer = self.toBendLayer()
         oldPairsLayer = self.pairsLayer()
 
-        self.layerToBendComboBox.clear()
-        self.pairsLayerComboBox.clear()
+        self.comboBox_toBendLayer.clear()
+        self.comboBox_pairsLayer.clear()
         for layer in self.iface.legendInterface().layers():
             if layer.type() == QgsMapLayer.VectorLayer:
-                self.layerToBendComboBox.addItem( layer.name(), layer.id() )
+                self.comboBox_toBendLayer.addItem( layer.name(), layer.id() )
                 if layer.geometryType() == QGis.Line :
-                    self.pairsLayerComboBox.addItem( layer.name(), layer.id() )
+                    self.comboBox_pairsLayer.addItem( layer.name(), layer.id() )
 
         if oldBendLayer is not None:
-            index = self.layerToBendComboBox.findData(oldBendLayer.id())
-            self.layerToBendComboBox.setCurrentIndex( index )
+            index = self.comboBox_toBendLayer.findData(oldBendLayer.id())
+            self.comboBox_toBendLayer.setCurrentIndex( index )
         if oldPairsLayer is not None:
-            index = self.pairsLayerComboBox.findData(oldPairsLayer.id())
-            self.pairsLayerComboBox.setCurrentIndex( index )
+            index = self.comboBox_pairsLayer.findData(oldPairsLayer.id())
+            self.comboBox_pairsLayer.setCurrentIndex( index )
+
+    def updateEditState_pairsLayer(self):
+        l = self.pairsLayer()
+        self.editModeButton_pairsLayer.setChecked( False if (l is None or not l.isEditable()) else True )
+
+    def updateEditState_toBendLayer(self):
+        l = self.toBendLayer()
+        self.editModeButton_toBendLayer.setChecked( False if (l is None or not l.isEditable()) else True )
+
+    def updateTransformationType(self):
+        tt = self.vb.determineTransformationType()
+        self.stackedWidget.setCurrentIndex( tt )
+
+        self.checkRequirements()
+
 
 
 
@@ -86,13 +150,13 @@ class VectorBenderDialog(QWidget):
 
         self.updateLayersComboboxes()
 
-        index = self.pairsLayerComboBox.findData(newMemoryLayer.id())
-        self.pairsLayerComboBox.setCurrentIndex( index )
+        index = self.comboBox_pairsLayer.findData(newMemoryLayer.id())
+        self.comboBox_pairsLayer.setCurrentIndex( index )
         
         newMemoryLayer.startEditing()
 
-    def toggleEditMode(self, checked):
-        l = self.layerToBend()
+    def toggleEditMode(self, checked, toBendLayer_True_pairsLayer_False):
+        l = self.toBendLayer() if toBendLayer_True_pairsLayer_False else self.pairsLayer()
         if l is None:
             return 
 
@@ -108,13 +172,18 @@ class VectorBenderDialog(QWidget):
                     l.commitChanges()
                 elif retval == QMessageBox.Discard:
                     l.rollBack()
+    def toggleEditMode_toBendLayer(self, checked):
+        self.toggleEditMode(checked, True)
+    def toggleEditMode_pairsLayer(self, checked):
+        self.toggleEditMode(checked, False)
 
     def displayMsg(self, msg, error=False):
         if error:
-            QApplication.beep()
+            #QApplication.beep()
             msg = "<font color='red'>"+msg+"</font>"
         self.statusLabel.setText( msg )
 
-
-
-
+    def eventFilter(self,object,event):
+        if event.type() == QEvent.FocusIn:
+            self.refreshStates()
+        return False

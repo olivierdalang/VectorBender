@@ -98,13 +98,17 @@ class VectorBender:
     def showUi(self):
         self.dlg.show()
         self.dlg.raise_()
+        self.dlg.refreshStates()
 
     def loadDelaunay(self, pairsLayer, buff=0):
 
         self.ptsA = []
         self.ptsB = []
         ptsForHull = []
-        for feature in pairsLayer.getFeatures():
+
+        features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
+
+        for feature in features:
             geom = feature.geometry().asPolyline()
             self.ptsA.append( QgsPoint(geom[0].x(),geom[0].y()) )
             self.ptsB.append( QgsPoint(geom[-1].x(),geom[-1].y()) )
@@ -122,86 +126,88 @@ class VectorBender:
 
         self.delaunay = matplotlib.tri.Triangulation([p.x() for p in self.ptsA],[p.y() for p in self.ptsA])
 
-    def togglePreview(self):
+    def determineTransformationType(self):
 
+        pairsLayer = self.dlg.pairsLayer()
+
+        if pairsLayer is None:
+            return 0
+
+        featuresCount = len(pairsLayer.selectedFeaturesIds()) if self.dlg.restrictBox_pairsLayer.isChecked() else len(pairsLayer.allFeatureIds())
+        
+        if featuresCount == 1:
+            return 1
+        elif featuresCount == 2:
+            return 2
+        elif featuresCount >= 3:
+            return 3
+
+        return 0
+
+    
+
+    def hidePreview(self):
         if self.rubberBands is not None:
             self.rubberBands[0].reset(QGis.Polygon)
             self.rubberBands[1].reset(QGis.Polygon)
             self.rubberBands[2].reset(QGis.Polygon)
             self.rubberBands = None
-        else:        
-            self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon))
-            self.updatePreview()
 
-    def updatePreview(self):
-        if self.rubberBands is not None:
-            self.rubberBands[0].reset(QGis.Polygon)
-            self.rubberBands[1].reset(QGis.Polygon)
-            self.rubberBands[2].reset(QGis.Polygon)
+    def showPreview(self):
 
-            pairsLayer = self.dlg.pairsLayer()
-            if pairsLayer is None:
-                self.dlg.statusLabel.setText( "You must select a vector-line layer which defines the points pairs !" )
-                return
+        self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon))
 
-            self.loadDelaunay(pairsLayer, self.dlg.bufferValue())
+        self.rubberBands[0].reset(QGis.Polygon)
+        self.rubberBands[1].reset(QGis.Polygon)
+        self.rubberBands[2].reset(QGis.Polygon)
 
-            self.rubberBands[0].setColor(QColor(0,125,255))
-            self.rubberBands[1].setColor(QColor(255,125,0))
-            self.rubberBands[2].setColor(QColor(0,125,0,50))
+        pairsLayer = self.dlg.pairsLayer()
+        if pairsLayer is None:
+            self.dlg.statusLabel.setText( "You must select a vector-line layer which defines the points pairs !" )
+            return
 
-            self.rubberBands[0].setBrushStyle(Qt.Dense6Pattern)
-            self.rubberBands[1].setBrushStyle(Qt.Dense6Pattern)
-            self.rubberBands[2].setBrushStyle(Qt.NoBrush)
+        self.loadDelaunay(pairsLayer, self.dlg.bufferValue())
 
-            self.rubberBands[0].setWidth(3)
-            self.rubberBands[1].setWidth(3)
-            self.rubberBands[2].setWidth(1)
-          
-            #draw the expanded hull
-            for p in self.expandedHull.asPolygon()[0]:
-                self.rubberBands[0].addPoint( p, True, 0  )
-            for p in self.expandedHull.asPolygon()[0][0:1]:
-                #we readd the first point since it's not possible to make true rings with rubberbands
-                self.rubberBands[0].addPoint( p, True, 0  )
+        self.rubberBands[0].setColor(QColor(0,125,255))
+        self.rubberBands[1].setColor(QColor(255,125,0))
+        self.rubberBands[2].setColor(QColor(0,125,0,50))
 
-            #draw the hull
-            for p in self.hull.asPolygon()[0]:
-                self.rubberBands[0].addPoint( p, True, 0  ) #inner ring of rubberband 1
-                self.rubberBands[1].addPoint( p, True, 0  )
-            for p in self.hull.asPolygon()[0][0:1]:
-                #we readd the first point since it's not possible to make true rings with rubberbands
-                self.rubberBands[0].addPoint( p, True, 0  )
+        self.rubberBands[0].setBrushStyle(Qt.Dense6Pattern)
+        self.rubberBands[1].setBrushStyle(Qt.Dense6Pattern)
+        self.rubberBands[2].setBrushStyle(Qt.NoBrush)
 
-            #draw the triangles
-            for i,tri in enumerate(self.delaunay.triangles):
-                self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
-                self.rubberBands[2].addPoint( self.ptsA[tri[1]], False, i  )
-                self.rubberBands[2].addPoint( self.ptsA[tri[2]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
+        self.rubberBands[0].setWidth(3)
+        self.rubberBands[1].setWidth(3)
+        self.rubberBands[2].setWidth(1)
+      
+        #draw the expanded hull
+        for p in self.expandedHull.asPolygon()[0]:
+            self.rubberBands[0].addPoint( p, True, 0  )
+        for p in self.expandedHull.asPolygon()[0][0:1]:
+            #we readd the first point since it's not possible to make true rings with rubberbands
+            self.rubberBands[0].addPoint( p, True, 0  )
+
+        #draw the hull
+        for p in self.hull.asPolygon()[0]:
+            self.rubberBands[0].addPoint( p, True, 0  ) #inner ring of rubberband 1
+            self.rubberBands[1].addPoint( p, True, 0  )
+        for p in self.hull.asPolygon()[0][0:1]:
+            #we readd the first point since it's not possible to make true rings with rubberbands
+            self.rubberBands[0].addPoint( p, True, 0  )
+
+        #draw the triangles
+        for i,tri in enumerate(self.delaunay.triangles):
+            self.rubberBands[2].addPoint( self.ptsA[tri[0]], False, i  )
+            self.rubberBands[2].addPoint( self.ptsA[tri[1]], False, i  )
+            self.rubberBands[2].addPoint( self.ptsA[tri[2]], True, i  ) #TODO : this refreshes the rubber band on each triangle, it should be updated only once after this loop       
 
     def run(self):
 
         self.dlg.progressBar.setValue( 0 )
 
-        toBendLayer = self.dlg.layerToBend()
+        toBendLayer = self.dlg.toBendLayer()
         pairsLayer = self.dlg.pairsLayer()
 
-        # Checkin requirements
-        if toBendLayer is None:
-            self.dlg.displayMsg( "You must select a vector layer to bend !", True )
-            return
-        if pairsLayer is None:
-            self.dlg.displayMsg( "You must select a vector-line layer which defines the points pairs !", True )
-            return
-        if pairsLayer is toBendLayer:
-            self.dlg.displayMsg( "The layer to bend must be different from the pairs layer !", True )
-            return            
-        if not toBendLayer.isEditable():
-            self.dlg.displayMsg( "The layer to bend must be in edit mode !", True )
-            return
-        if not toBendLayer.isEditable():
-            self.dlg.displayMsg( "The layer to bend must be in edit mode !", True )
-            return
 
 
         # Loading the delaunay
@@ -213,19 +219,22 @@ class VectorBender:
 
 
         # Starting to iterate
-        count = toBendLayer.featureCount()
+        features = toBendLayer.getFeatures() if not self.dlg.restrictBox_toBendLayer.isChecked() else toBendLayer.selectedFeatures()
+
+        count = toBendLayer.featureCount() if not self.dlg.restrictBox_toBendLayer.isChecked() else len(features)
         self.dlg.displayMsg( "Starting to iterate through %i features..." % count )
         QCoreApplication.processEvents()
 
         toBendLayer.beginEditCommand("Feature bending")
-
-        for i,feature in enumerate(toBendLayer.getFeatures()):
+        for i,feature in enumerate(features):
 
             self.dlg.progressBar.setValue( int(100.0*float(i)/float(count)) )
             self.dlg.displayMsg( "Aligning features %i out of %i..."  % (i, count))
             QCoreApplication.processEvents()
 
             geom = feature.geometry()
+
+            #TODO : this cood be much simpler if we could iterate through to vertices and use QgsGeometry.moveVertex(x,y,index), but QgsGeometry.vertexAt(index) doesn't tell wether the index exists, so there's no clean way to iterate...
 
             if geom.type() == QGis.Point:
 
@@ -298,9 +307,32 @@ class VectorBender:
 
         toBendLayer.endEditCommand()
 
+
+        #Transforming pairs to pins
+        features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
+
+        count = pairsLayer.featureCount() if not self.dlg.restrictBox_pairsLayer.isChecked() else len(features)
+        self.dlg.progressBar.setValue( 0 )
+        self.dlg.displayMsg( "Starting to transform %i pairs to pins..." % count )
+        QCoreApplication.processEvents()
+
+        pairsLayer.beginEditCommand("Transforming pairs to pins")
+        for i,feature in enumerate(features):
+
+            self.dlg.progressBar.setValue( int(100.0*float(i)/float(count)) )
+            self.dlg.displayMsg( "Transforming pair to pin %i out of %i..."  % (i, count))
+            QCoreApplication.processEvents()
+
+            geom = feature.geometry().asPolyline()
+
+            newGeom = QgsGeometry.fromPolyline( [geom[-1],geom[-1]] )
+            pairsLayer.changeGeometry( feature.id(), newGeom )
+
+        pairsLayer.endEditCommand()
+
         self.dlg.displayMsg( "Finished !" )
         self.dlg.progressBar.setValue( 100 )
-        toBendLayer.repaintRequested.emit()
+        pairsLayer.repaintRequested.emit()
 
     def mapPoint(self, p):
 

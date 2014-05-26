@@ -52,6 +52,7 @@ Or send me some feedback at : olivier.dalang@gmail.com
 ### Confirmed
 
 - remove dependecy to matplotlib as well
+- do a translation when only one pair, do a conform transformation when only two vectors as set, do a linear transformation when only three are set, do the complex algorithm only when more than three vectors are set.
 - allow to apply to selection only
 - allow to modify the PairsLayers so that every processed point becomes a pinned point, so it's possible to work more incrementally
 
