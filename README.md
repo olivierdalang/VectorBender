@@ -43,18 +43,16 @@ The "buffer" parameters sets a buffer around the triangulation, so that the tran
 Using this method will __INDUCE DEFORMATIONS__. You should __ONLY__ use it if your data is already deformed, and not to accomplish CRS transformations nor linear/affine transformations.
 
 
-
-
-
 ### Bending transformation unavailable because you miss dependencies ?!
 
-This plusing relies on matplotlib 1.3.0
+This plusing relies on matplotlib 1.3.0, which itself relies on other libraries. Unfortunately, it seems OSGeo4W installs old version of them, at least under windows, which prevents from using the bending transformation type.
 
-If you miss this library or have an old version of it, you won't be able to use the bending transformation.
+On my setup (windows, QGIS-dev 2.3), I had to install those packages (for python 2.7) manually :
+- matplotlib 1.3.1 : http://matplotlib.org/downloads.html
+- pyparsing 1.5.6 : http://sourceforge.net/projects/pyparsing/files/pyparsing/pyparsing-1.5.6/
+- numpy 1.8.1 : http://sourceforge.net/projects/numpy/files/NumPy/
 
-On Windows, it can be installed using OSGeo4W 64 bits version (found in the libraries category).
-
-Please send me an email me if you encoutered this problem and solved it, so I can update this readme.
+Please send me an email me if you encoutered this problem and solved it in an easier way or for another setup, so I can update this readme.
 
 
 ## Feedback / Bugs / Contribute

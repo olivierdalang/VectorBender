@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from qgis.core import *
 import math
-from numpy import matrix
 
 try:
     #we silently fail the import here since message is already taken car in vectorbender.py
@@ -53,20 +52,20 @@ class BendTransformer(Transformer):
 
     def map(self, p):
 
-        tri = self.trifinder( p[0], p[1] )
+        triangle = self.trifinder( p[0], p[1] )
 
-        if tri==-1:
+        if triangle==-1:
             # No triangle found : don't change the point
             return QgsPoint(p[0], p[1])
         else:
             # Triangle found : adapt it from the old mesh to the new mesh
-            a1 = self.pointsA[self.delaunay.triangles[tri][0]]
-            a2 = self.pointsA[self.delaunay.triangles[tri][1]]
-            a3 = self.pointsA[self.delaunay.triangles[tri][2]]
+            a1 = self.pointsA[self.delaunay.triangles[triangle][0]]
+            a2 = self.pointsA[self.delaunay.triangles[triangle][1]]
+            a3 = self.pointsA[self.delaunay.triangles[triangle][2]]
 
-            b1 = self.pointsB[self.delaunay.triangles[tri][0]]
-            b2 = self.pointsB[self.delaunay.triangles[tri][1]]
-            b3 = self.pointsB[self.delaunay.triangles[tri][2]]
+            b1 = self.pointsB[self.delaunay.triangles[triangle][0]]
+            b2 = self.pointsB[self.delaunay.triangles[triangle][1]]
+            b3 = self.pointsB[self.delaunay.triangles[triangle][2]]
 
             mappedP = self.mapPointFromTriangleAtoTriangleB(p, a1, a2, a3, b1, b2, b3)
 

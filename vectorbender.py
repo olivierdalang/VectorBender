@@ -39,9 +39,9 @@ try:
     minVersion = '1.3.0'
     if StrictVersion(matplotlib.__version__) < StrictVersion(minVersion):
         dependenciesStatus=1
-        QgsMessageLog.logMessage("Matplotlib version too old (%s instead of %s). Some things may not work as expected." % (matplotlib.__version__,minVersion))
+        QgsMessageLog.logMessage("Matplotlib version too old (%s instead of %s). You won't be able to use the bending algorithm" % (matplotlib.__version__,minVersion), 'VectorBender')
 except Exception, e:
-    QgsMessageLog.logMessage("Matplotlib is missing !")
+    QgsMessageLog.logMessage("Matplotlib is missing. You won't be able to use the bending algorithm", 'VectorBender')
     dependenciesStatus = 0
 
 # Other classes
