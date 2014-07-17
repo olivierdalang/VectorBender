@@ -172,7 +172,7 @@ class VectorBender:
 
                 if not geom.isMultipart():
                     # SINGLE PART POINT
-                    p = goem.asPoint()
+                    p = geom.asPoint()
                     newGeom = QgsGeometry.fromPoint( self.transformer.map(p) )
 
                 else:

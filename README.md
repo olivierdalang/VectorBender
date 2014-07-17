@@ -66,6 +66,7 @@ Or send me some feedback at : olivier.dalang@gmail.com
 
 - 2014-05-22 - Version 0.0 : intial release
 - 2014-05-25 - Version 0.1 : linear and uniform transformation method, scipy dependency no more needed, better management of pinned points
+- 2014-07-17 - Version 0.1.1 : fixed bug due to misspelling
 
 
 ## Roadmap

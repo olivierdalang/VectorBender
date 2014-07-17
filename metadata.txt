@@ -13,7 +13,7 @@ name=Vector Bender
 qgisMinimumVersion=2.2
 description=Does to vectors what georefencers does to raster. This feature is also known as "rubber sheeting".
 category=Vector
-version=0.1
+version=0.1.1
 author=Olivier Dalang
 email=olivier.dalang@gmail.com
 
@@ -24,6 +24,7 @@ email=olivier.dalang@gmail.com
 # Uncomment the following line and add your changelog entries:
 changelog=- 2014-05-22 - Version 0.0 : intial release
 - 2014-05-26 - Version 0.1 : linear and uniform transformation method, scipy dependency no more needed, better management of pinned points
+- 2014-07-17 - Version 0.1.1 : fixed bug due to misspelling
 
 
 
