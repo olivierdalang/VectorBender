@@ -94,6 +94,88 @@ class BendTransformer(Transformer):
         y = l[0]*t1.y()+l[1]*t2.y()+l[2]*t3.y()
         return QgsPoint(x,y)
 
+class AffineTransformer(Transformer):
+    def __init__(self, pairsLayer, restrictToSelection):
+        Transformer.__init__(self, pairsLayer, restrictToSelection)
+
+        # Make sure data is valid
+        assert len(self.pointsA)==3
+        assert len(self.pointsA)==len(self.pointsB)
+
+        self.a1 = self.pointsA[0]
+        self.a2 = self.pointsA[1]
+        self.a3 = self.pointsA[2]
+        self.b1 = self.pointsB[0]
+        self.b2 = self.pointsB[1]
+        self.b3 = self.pointsB[2]
+
+
+        """
+
+        MATRIX
+
+            [a,b,c] 
+        M = [d,e,f] 
+            [0,0,1] 
+
+               [x11]   [x12]
+        1] M * [y11] = [y12]
+               [ 1 ]   [ 1 ]
+
+               [x21]   [x22]
+        2] M * [y21] = [y22]
+               [ 1 ]   [ 1 ]
+
+               [x31]   [x32]
+        3] M * [y31] = [y32]
+               [ 1 ]   [ 1 ]
+
+        Equations to solve
+        [ 
+            a*x11+b*y11+c = x12,
+            d*x11+e*y11+f = y12,
+            a*x21+b*y21+c = x22,
+            d*x21+e*y21+f = y22,
+            a*x31+b*y31+c = x32,
+            d*x31+e*y31+f = y32]
+        For variables
+        [a,b,c,d,e,f]
+
+        Result using http://www.numberempire.com/equationsolver.php
+
+        a = (x12*(y31-y21)-x22*y31+x32*y21+(x22-x32)*y11)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        b = (x11*(x32-x22)-x21*x32+x22*x31+x12*(x21-x31))/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        c = -(x11*(x32*y21-x22*y31)+x12*(x21*y31-x31*y21)+(x22*x31-x21*x32)*y11)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        d = (y21*y32+y11*(y22-y32)+y12*(y31-y21)-y22*y31)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        e = -(x21*y32+x11*(y22-y32)-x31*y22+(x31-x21)*y12)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        f = (x11*(y22*y31-y21*y32)+y11*(x21*y32-x31*y22)+y12*(x31*y21-x21*y31))/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+
+        """
+
+        x11 = self.a1.x()
+        y11 = self.a1.y()
+        x21 = self.a2.x()
+        y21 = self.a2.y()
+        x31 = self.a3.x()
+        y31 = self.a3.y()
+        x12 = self.b1.x()
+        y12 = self.b1.y()
+        x22 = self.b2.x()
+        y22 = self.b2.y()
+        x32 = self.b3.x()
+        y32 = self.b3.y()
+
+        self.a = (x12*(y31-y21)-x22*y31+x32*y21+(x22-x32)*y11)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        self.b = (x11*(x32-x22)-x21*x32+x22*x31+x12*(x21-x31))/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        self.c = -(x11*(x32*y21-x22*y31)+x12*(x21*y31-x31*y21)+(x22*x31-x21*x32)*y11)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        self.d = (y21*y32+y11*(y22-y32)+y12*(y31-y21)-y22*y31)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        self.e = -(x21*y32+x11*(y22-y32)-x31*y22+(x31-x21)*y12)/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+        self.f = (x11*(y22*y31-y21*y32)+y11*(x21*y32-x31*y22)+y12*(x31*y21-x21*y31))/(x11*(y31-y21)-x21*y31+x31*y21+(x21-x31)*y11)
+
+
+    def map(self, p):
+
+        return QgsPoint( self.a*p.x()+self.b*p.y()+self.c, self.d*p.x()+self.e*p.y()+self.f )
 
 class LinearTransformer(Transformer):
     def __init__(self, pairsLayer, restrictToSelection):
