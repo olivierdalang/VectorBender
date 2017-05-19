@@ -27,7 +27,7 @@ class Transformer():
         return p
 
 # we introduce the affine transformation (by francesco marucci)
-class AffineTransformer(Transformer):
+class AffineTransformerFRA(Transformer):
     def __init__(self, pairsLayer ):
         Transformer.__init__(self, pairsLayer )      
 
