@@ -154,7 +154,7 @@ class VectorBender:
             #QCoreApplication.processEvents()
             #self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )         
             self.dlg.displayMsg( "Loading affine transformation vectors..."  )
-            self.transformer = AffineTransformer( pairsLayer, restrictToSelection )
+            self.transformer = AffineTransformerFRA( pairsLayer, restrictToSelection )
         elif transType==2:
             self.dlg.displayMsg( "Loading linear transformation vectors..."  )
             self.transformer = LinearTransformer( pairsLayer, restrictToSelection )
