@@ -114,6 +114,7 @@ class VectorBender:
 
         featuresCount = len(pairsLayer.selectedFeaturesIds()) if self.dlg.restrictBox_pairsLayer.isChecked() else len(pairsLayer.allFeatureIds())
         
+        """ NOT CORRECT:
         if featuresCount == 1:
             return 1
         elif featuresCount == 2:
@@ -125,6 +126,14 @@ class VectorBender:
                 return 5
             else:
                 return 4
+        """
+        
+        if featuresCount == 1:
+            return 1
+        elif featuresCount == 2:
+            return 2
+        elif featuresCount >= 3:
+            return 3
 
         return 0
     
@@ -139,11 +148,11 @@ class VectorBender:
 
         # Loading the delaunay
         restrictToSelection = self.dlg.restrictBox_pairsLayer.isChecked()
-        if transType==4:
-            self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
-            QCoreApplication.processEvents()
-            self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )
-        elif transType==3:
+
+        if transType==3:
+            #self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
+            #QCoreApplication.processEvents()
+            #self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )         
             self.dlg.displayMsg( "Loading affine transformation vectors..."  )
             self.transformer = AffineTransformer( pairsLayer, restrictToSelection )
         elif transType==2:
