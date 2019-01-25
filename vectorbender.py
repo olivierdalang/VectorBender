@@ -21,10 +21,12 @@
 """
 
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
+
 
 # Basic dependencies
 import os.path
@@ -40,14 +42,14 @@ try:
     if StrictVersion(matplotlib.__version__) < StrictVersion(minVersion):
         dependenciesStatus=1
         QgsMessageLog.logMessage("Matplotlib version too old (%s instead of %s). You won't be able to use the bending algorithm" % (matplotlib.__version__,minVersion), 'VectorBender')
-except Exception, e:
+except Exception:
     QgsMessageLog.logMessage("Matplotlib is missing. You won't be able to use the bending algorithm", 'VectorBender')
     dependenciesStatus = 0
 
 # Other classes
-from vectorbendertransformers import *
-from vectorbenderdialog import VectorBenderDialog
-from vectorbenderhelp import VectorBenderHelp
+from .vectorbendertransformers import *
+from .vectorbenderdialog import VectorBenderDialog
+from .vectorbenderhelp import VectorBenderHelp
 
 class VectorBender:
 
@@ -103,28 +105,25 @@ class VectorBender:
             0 if no pairs Found
             1 if one pair found => translation
             2 if two pairs found => linear
-            3 if two pairs found => linear
-            4 if three or more pairs found => bending
-            5 if bending but unmet dependencies"""
+            3 if three or more pairs found => bending
+            4 if bending but unmet dependencies"""
 
         pairsLayer = self.dlg.pairsLayer()
 
         if pairsLayer is None:
             return 0
 
-        featuresCount = len(pairsLayer.selectedFeaturesIds()) if self.dlg.restrictBox_pairsLayer.isChecked() else len(pairsLayer.allFeatureIds())
+        featuresCount = len(pairsLayer.selectedFeatureIds()) if self.dlg.restrictBox_pairsLayer.isChecked() else len(pairsLayer.allFeatureIds())
         
         if featuresCount == 1:
             return 1
         elif featuresCount == 2:
             return 2
-        elif featuresCount == 3:
-            return 3
-        elif featuresCount >= 4:
+        elif featuresCount >= 3:
             if dependenciesStatus != 2:
-                return 5
-            else:
                 return 4
+            else:
+                return 3
 
         return 0
     
@@ -139,13 +138,10 @@ class VectorBender:
 
         # Loading the delaunay
         restrictToSelection = self.dlg.restrictBox_pairsLayer.isChecked()
-        if transType==4:
+        if transType==3:
             self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
             QCoreApplication.processEvents()
             self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )
-        elif transType==3:
-            self.dlg.displayMsg( "Loading affine transformation vectors..."  )
-            self.transformer = AffineTransformer( pairsLayer, restrictToSelection )
         elif transType==2:
             self.dlg.displayMsg( "Loading linear transformation vectors..."  )
             self.transformer = LinearTransformer( pairsLayer, restrictToSelection )
@@ -159,7 +155,7 @@ class VectorBender:
         # Starting to iterate
         features = toBendLayer.getFeatures() if not self.dlg.restrictBox_toBendLayer.isChecked() else toBendLayer.selectedFeatures()
 
-        count = toBendLayer.pendingFeatureCount() if not self.dlg.restrictBox_toBendLayer.isChecked() else len(features)
+        count = toBendLayer.featureCount() if not self.dlg.restrictBox_toBendLayer.isChecked() else len(features)
         self.dlg.displayMsg( "Starting to iterate through %i features..." % count )
         QCoreApplication.processEvents()
 
@@ -174,7 +170,7 @@ class VectorBender:
 
             #TODO : this cood be much simple if we could iterate through to vertices and use QgsGeometry.moveVertex(x,y,index), but QgsGeometry.vertexAt(index) doesn't tell wether the index exists, so there's no clean way to iterate...
 
-            if geom.type() == QGis.Point:
+            if geom.type() == QgsWkbTypes.PointGeometry:
 
                 if not geom.isMultipart():
                     # SINGLE PART POINT
@@ -189,7 +185,7 @@ class VectorBender:
                         newListA.append( self.transformer.map(p) )
                     newGeom = QgsGeometry.fromMultiPoint( newListA )
 
-            elif geom.type() == QGis.Line:
+            elif geom.type() == QgsWkbTypes.LineGeometry:
 
                 if not geom.isMultipart():
                     # SINGLE PART LINESTRING
@@ -197,7 +193,7 @@ class VectorBender:
                     newListA = []
                     for p in listA:
                         newListA.append( self.transformer.map(p) )
-                    newGeom = QgsGeometry.fromPolyline( newListA )
+                    newGeom = QgsGeometry.fromPolylineXY( newListA )
 
                 else:
                     # MULTI PART LINESTRING
@@ -208,7 +204,7 @@ class VectorBender:
                         for p in listB:
                             newListB.append( self.transformer.map(p) )
                         newListA.append( newListB )
-                    newGeom = QgsGeometry.fromMultiPolyline( newListA )
+                    newGeom = QgsGeometry.fromMultiPolylineXY( newListA )
 
             elif geom.type() == QGis.Polygon:
 
@@ -221,7 +217,7 @@ class VectorBender:
                         for p in listB:
                             newListB.append( self.transformer.map(p) )
                         newListA.append( newListB )
-                    newGeom = QgsGeometry.fromPolygon( newListA )
+                    newGeom = QgsGeometry.fromPolygonXY( newListA )
 
                 else:
                     # MULTI PART POLYGON
@@ -252,7 +248,7 @@ class VectorBender:
 
             features = pairsLayer.getFeatures() if not self.dlg.restrictBox_pairsLayer.isChecked() else pairsLayer.selectedFeatures()
 
-            count = pairsLayer.pendingFeatureCount() if not self.dlg.restrictBox_pairsLayer.isChecked() else len(features)
+            count = pairsLayer.featureCount() if not self.dlg.restrictBox_pairsLayer.isChecked() else len(features)
             self.dlg.progressBar.setValue( 0 )
             self.dlg.displayMsg( "Starting to transform %i pairs to pins..." % count )
             QCoreApplication.processEvents()
