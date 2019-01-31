@@ -105,8 +105,8 @@ class VectorBender:
             0 if no pairs Found
             1 if one pair found => translation
             2 if two pairs found => linear
-            3 if three or more pairs found => bending
-            4 if bending but unmet dependencies"""
+            3 if three pairs found => affine
+            4 if four or more pairs found => bending"""
 
         pairsLayer = self.dlg.pairsLayer()
 
@@ -119,11 +119,13 @@ class VectorBender:
             return 1
         elif featuresCount == 2:
             return 2
-        elif featuresCount >= 3:
+        elif featuresCount == 3:
+            return 3
+        elif featuresCount >= 4:
             if dependenciesStatus != 2:
-                return 4
+                return 5
             else:
-                return 3
+                return 4
 
         return 0
     
@@ -138,10 +140,13 @@ class VectorBender:
 
         # Loading the delaunay
         restrictToSelection = self.dlg.restrictBox_pairsLayer.isChecked()
-        if transType==3:
+        if transType==4:
             self.dlg.displayMsg( "Loading delaunay mesh (%i points) ..." % len(self.ptsA) )
             QCoreApplication.processEvents()
             self.transformer = BendTransformer( pairsLayer, restrictToSelection, self.dlg.bufferValue() )
+        elif transType==3:
+            self.dlg.displayMsg( "Loading affine transformation vectors..."  )
+            self.transformer = AffineTransformer( pairsLayer, restrictToSelection )
         elif transType==2:
             self.dlg.displayMsg( "Loading linear transformation vectors..."  )
             self.transformer = LinearTransformer( pairsLayer, restrictToSelection )
@@ -206,7 +211,7 @@ class VectorBender:
                         newListA.append( newListB )
                     newGeom = QgsGeometry.fromMultiPolylineXY( newListA )
 
-            elif geom.type() == QgsWkbTypes.PolygonGeometry: #Almerio: QGis.Polygon
+            elif geom.type() == QgsWkbTypes.PolygonGeometry:
 
                 if not geom.isMultipart():
                     # SINGLE PART POLYGON
@@ -231,7 +236,7 @@ class VectorBender:
                                 newListC.append( self.transformer.map(p) )
                             newListB.append( newListC )
                         newListA.append( newListB )
-                    newGeom = QgsGeometry.fromMultiPolygonXY( newListA ) #Almerio: fromMultiPolygon
+                    newGeom = QgsGeometry.fromMultiPolygonXY( newListA )
 
             else:
                 # FALLBACK, JUST IN CASE ;)
