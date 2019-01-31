@@ -206,7 +206,7 @@ class VectorBender:
                         newListA.append( newListB )
                     newGeom = QgsGeometry.fromMultiPolylineXY( newListA )
 
-            elif geom.type() == QGis.Polygon:
+            elif geom.type() == QgsWkbTypes.PolygonGeometry: #Almerio: QGis.Polygon
 
                 if not geom.isMultipart():
                     # SINGLE PART POLYGON
@@ -231,7 +231,7 @@ class VectorBender:
                                 newListC.append( self.transformer.map(p) )
                             newListB.append( newListC )
                         newListA.append( newListB )
-                    newGeom = QgsGeometry.fromMultiPolygon( newListA )
+                    newGeom = QgsGeometry.fromMultiPolygonXY( newListA ) #Almerio: fromMultiPolygon
 
             else:
                 # FALLBACK, JUST IN CASE ;)
