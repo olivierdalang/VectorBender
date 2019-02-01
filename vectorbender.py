@@ -27,7 +27,6 @@ from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-
 # Basic dependencies
 import os.path
 import sys
@@ -267,7 +266,7 @@ class VectorBender:
 
                 geom = feature.geometry().asPolyline()
 
-                newGeom = QgsGeometry.fromPolyline( [geom[-1],geom[-1]] )
+                newGeom = QgsGeometry.fromPolylineXY( [geom[-1],geom[-1]] )
                 pairsLayer.changeGeometry( feature.id(), newGeom )
 
             pairsLayer.endEditCommand()

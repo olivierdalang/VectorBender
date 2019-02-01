@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from qgis.PyQt import uic, QtWidgets
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtCore import *
@@ -264,7 +263,7 @@ class VectorBenderDialog(QtWidgets.QDialog):
 
     # Events
     def eventFilter(self,object,event):
-        if event.type() == QEvent.FocusIn:
+        if event.type() == QEvent.WindowActivate:
             self.refreshStates()
         return False
 
