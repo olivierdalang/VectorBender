@@ -13,8 +13,9 @@ name=Vector Bender
 qgisMinimumVersion=2.99
 qgisMaximumVersion=3.99
 description=Does to vectors what georefencers does to raster. This feature is also known as "rubber sheeting".
+about=Does to vectors what georefencers does to raster. This feature is also known as "rubber sheeting".
 category=Vector
-version=3.0.0
+version=0.2
 author=Olivier Dalang
 email=olivier.dalang@gmail.com
 
@@ -26,7 +27,7 @@ email=olivier.dalang@gmail.com
 changelog=- 2014-05-22 - Version 0.0 : intial release
     - 2014-05-26 - Version 0.1 : linear and uniform transformation method, scipy dependency no more needed, better management of pinned points
     - 2014-07-17 - Version 0.1.1 : fixed bug due to misspelling
-    - 2019-01-18 - Version 3.0.0 : Updated to Qgis 3 (Thanks to Jorge Almerio)
+    - 2019-01-18 - Version 0.2 : Updated to Qgis 3 (Thanks to Jorge Almerio)
 
 
 
@@ -38,7 +39,7 @@ tracker=https://github.com/olivierdalang/VectorBender/issues
 repository=git@github.com:olivierdalang/VectorBender.git
 icon=resources/icon.png
 # experimental flag
-experimental=True
+experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version
 deprecated=False

@@ -34,7 +34,11 @@ The vector layer will simply be offsetted according to the pair of points.
 
 The vector layer will be translated, scaled (uniformly), and rotated so that both pairs match
 
-### Bending (3 or more pairs defined/selected)
+### Affine (exactly 3 pairs defined/seleced)
+
+The vector layer will be transformed using an affine transformation so that the three pairs match.
+
+### Bending (4 or more pairs defined/selected)
 
 The first points of all pairs will be triangulated, and this triangulation will be mapped on the last points of all pairs. The vector layer will then be deformed by matching the triangulation.
 
