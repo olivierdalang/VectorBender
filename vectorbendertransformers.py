@@ -5,7 +5,7 @@ import math
 try:
     #we silently fail the import here since message is already taken car in vectorbender.py
     import matplotlib.tri
-except Exception, e:
+except Exception:
     pass
 
 class Transformer():
@@ -20,8 +20,8 @@ class Transformer():
 
         for feature in features:
             geom = feature.geometry().asPolyline()
-            self.pointsA.append( QgsPoint(geom[0].x(),geom[0].y()) )
-            self.pointsB.append( QgsPoint(geom[-1].x(),geom[-1].y()) )
+            self.pointsA.append( QgsPointXY(geom[0].x(),geom[0].y()) )
+            self.pointsB.append( QgsPointXY(geom[-1].x(),geom[-1].y()) )
 
     def map(self, p):
         return p
@@ -35,7 +35,7 @@ class BendTransformer(Transformer):
         assert len(self.pointsA)>=3
         assert len(self.pointsA)==len(self.pointsB)
 
-        self.hull = QgsGeometry.fromMultiPoint( self.pointsA ).convexHull()
+        self.hull = QgsGeometry.fromMultiPointXY( self.pointsA ).convexHull()
 
         # If there is a buffer, we add a ring outside the hull so that the transformation smoothly stops
         if buff>0:
@@ -56,7 +56,7 @@ class BendTransformer(Transformer):
 
         if triangle==-1:
             # No triangle found : don't change the point
-            return QgsPoint(p[0], p[1])
+            return QgsPointXY(p[0], p[1])
         else:
             # Triangle found : adapt it from the old mesh to the new mesh
             a1 = self.pointsA[self.delaunay.triangles[triangle][0]]
@@ -92,7 +92,7 @@ class BendTransformer(Transformer):
         """ l is a triplet for barycentric coordinates """
         x = l[0]*t1.x()+l[1]*t2.x()+l[2]*t3.x()
         y = l[0]*t1.y()+l[1]*t2.y()+l[2]*t3.y()
-        return QgsPoint(x,y)
+        return QgsPointXY(x,y)
 
 class AffineTransformer(Transformer):
     def __init__(self, pairsLayer, restrictToSelection):
@@ -116,8 +116,8 @@ class AffineTransformer(Transformer):
 
             [a,b,c] 
         M = [d,e,f] 
-            [0,0,1] 
-
+            [0,0,1]
+            
                [x11]   [x12]
         1] M * [y11] = [y12]
                [ 1 ]   [ 1 ]
@@ -130,7 +130,7 @@ class AffineTransformer(Transformer):
         3] M * [y31] = [y32]
                [ 1 ]   [ 1 ]
 
-        Equations to solve
+               Equations to solve
         [ 
             a*x11+b*y11+c = x12,
             d*x11+e*y11+f = y12,
@@ -175,8 +175,8 @@ class AffineTransformer(Transformer):
 
     def map(self, p):
 
-        return QgsPoint( self.a*p.x()+self.b*p.y()+self.c, self.d*p.x()+self.e*p.y()+self.f )
-
+        return QgsPointXY( self.a*p.x()+self.b*p.y()+self.c, self.d*p.x()+self.e*p.y()+self.f )
+        
 class LinearTransformer(Transformer):
     def __init__(self, pairsLayer, restrictToSelection):
         Transformer.__init__(self, pairsLayer, restrictToSelection)
@@ -204,16 +204,16 @@ class LinearTransformer(Transformer):
     def map(self, p):
 
         #move to origin (translation part 1)
-        p = QgsPoint( p.x()-self.dx1, p.y()-self.dy1 )
+        p = QgsPointXY( p.x()-self.dx1, p.y()-self.dy1 )
 
         #scale 
-        p = QgsPoint( self.ds*p.x(), self.ds*p.y() )
+        p = QgsPointXY( self.ds*p.x(), self.ds*p.y() )
 
         #rotation
-        p = QgsPoint( math.cos(self.da)*p.x() - math.sin(self.da)*p.y(), math.sin(self.da)*p.x() + math.cos(self.da)*p.y() )
+        p = QgsPointXY( math.cos(self.da)*p.x() - math.sin(self.da)*p.y(), math.sin(self.da)*p.x() + math.cos(self.da)*p.y() )
 
         #remove to right spot (translation part 2)
-        p = QgsPoint( p.x()+self.dx2, p.y()+self.dy2 )
+        p = QgsPointXY( p.x()+self.dx2, p.y()+self.dy2 )
 
         return p
 
@@ -229,5 +229,5 @@ class TranslationTransformer(Transformer):
         self.dy = self.pointsB[0].y()-self.pointsA[0].y()
 
     def map(self, p):
-        return QgsPoint(p[0]+self.dx, p[1]+self.dy)
+        return QgsPointXY(p[0]+self.dx, p[1]+self.dy)
 

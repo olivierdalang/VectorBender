@@ -22,5 +22,5 @@
 """
 def classFactory(iface):
     # load VectorBender class from file VectorBender
-    from vectorbender import VectorBender
+    from .vectorbender import VectorBender
     return VectorBender(iface)

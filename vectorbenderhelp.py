@@ -20,17 +20,19 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtWidgets import QTextBrowser, QVBoxLayout, QPushButton
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 from qgis.core import *
 
 # Basic dependencies
 import os.path
 
-class VectorBenderHelp(QDialog):
+class VectorBenderHelp(QtWidgets.QDialog):
 
     def __init__(self):
-        QDialog.__init__(self)
+        QtWidgets.QDialog.__init__(self)
 
         self.setMinimumWidth(600)
         self.setMinimumHeight(450)

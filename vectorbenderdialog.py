@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-
-from PyQt4 import uic
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt import uic, QtWidgets
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 
 from qgis.core import *
 from qgis.gui import *
 
 import os.path
 
-from vectorbendertransformers import *
+from .vectorbendertransformers import *
 
 
-class VectorBenderDialog(QWidget):
+class VectorBenderDialog(QtWidgets.QDialog):
     def __init__(self, iface, vb):
-        QWidget.__init__(self)
+        QtWidgets.QDialog.__init__(self)
         uic.loadUi(os.path.join(os.path.dirname(__file__),'ui_main.ui'), self)
         self.setFocusPolicy(Qt.ClickFocus)
         #self.setWindowModality( Qt.ApplicationModal )
@@ -58,13 +58,13 @@ class VectorBenderDialog(QWidget):
         Returns the current toBend layer depending on what is choosen in the comboBox_pairsLayer
         """
         layerId = self.comboBox_toBendLayer.itemData(self.comboBox_toBendLayer.currentIndex())
-        return QgsMapLayerRegistry.instance().mapLayer(layerId)
+        return QgsProject.instance().mapLayer(layerId)
     def pairsLayer(self):
         """
         Returns the current pairsLayer layer depending on what is choosen in the comboBox_pairsLayer
         """
         layerId = self.comboBox_pairsLayer.itemData(self.comboBox_pairsLayer.currentIndex())
-        return QgsMapLayerRegistry.instance().mapLayer(layerId)
+        return QgsProject.instance().mapLayer(layerId)
     def bufferValue(self):
         """
         Returns the current buffer value depending on the input in the spinbox
@@ -126,10 +126,10 @@ class VectorBenderDialog(QWidget):
 
         self.comboBox_toBendLayer.clear()
         self.comboBox_pairsLayer.clear()
-        for layer in self.iface.legendInterface().layers():
+        for layer in QgsProject.instance().mapLayers().values():
             if layer.type() == QgsMapLayer.VectorLayer:
                 self.comboBox_toBendLayer.addItem( layer.name(), layer.id() )
-                if layer.geometryType() == QGis.Line :
+                if layer.geometryType() == QgsWkbTypes.LineGeometry :
                     self.comboBox_pairsLayer.addItem( layer.name(), layer.id() )
 
         if oldBendLayer is not None:
@@ -190,13 +190,13 @@ class VectorBenderDialog(QWidget):
 
         suffix = ""
         name = "Vector Bender"
-        while len( QgsMapLayerRegistry.instance().mapLayersByName( name+suffix ) ) > 0:
+        while len( QgsProject.instance().mapLayersByName( name+suffix ) ) > 0:
             if suffix == "": suffix = " 1"
             else: suffix = " "+str(int(suffix)+1)
 
         newMemoryLayer = QgsVectorLayer("Linestring", name+suffix, "memory")
         newMemoryLayer.loadNamedStyle(os.path.join(os.path.dirname(__file__),'PairStyle.qml'), False)
-        QgsMapLayerRegistry.instance().addMapLayer(newMemoryLayer)
+        QgsProject.instance().addMapLayer(newMemoryLayer)
 
         self.updateLayersComboboxes()
 
@@ -211,17 +211,17 @@ class VectorBenderDialog(QWidget):
         self.statusLabel.setText( msg )  
     def hidePreview(self):
         if self.rubberBands is not None:
-            self.rubberBands[0].reset(QGis.Polygon)
-            self.rubberBands[1].reset(QGis.Polygon)
-            self.rubberBands[2].reset(QGis.Polygon)
+            self.rubberBands[0].reset(QgsWkbTypes.PolygonGeometry)
+            self.rubberBands[1].reset(QgsWkbTypes.PolygonGeometry)
+            self.rubberBands[2].reset(QgsWkbTypes.PolygonGeometry)
             self.rubberBands = None
     def showPreview(self):
 
-        self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon),QgsRubberBand(self.iface.mapCanvas(), QGis.Polygon))
+        self.rubberBands = (QgsRubberBand(self.iface.mapCanvas(), QgsWkbTypes.PolygonGeometry),QgsRubberBand(self.iface.mapCanvas(), QgsWkbTypes.PolygonGeometry),QgsRubberBand(self.iface.mapCanvas(), QgsWkbTypes.PolygonGeometry))
 
-        self.rubberBands[0].reset(QGis.Polygon)
-        self.rubberBands[1].reset(QGis.Polygon)
-        self.rubberBands[2].reset(QGis.Polygon)
+        self.rubberBands[0].reset(QgsWkbTypes.PolygonGeometry)
+        self.rubberBands[1].reset(QgsWkbTypes.PolygonGeometry)
+        self.rubberBands[2].reset(QgsWkbTypes.PolygonGeometry)
 
         pairsLayer = self.pairsLayer()
 
@@ -263,7 +263,7 @@ class VectorBenderDialog(QWidget):
 
     # Events
     def eventFilter(self,object,event):
-        if event.type() == QEvent.FocusIn:
+        if event.type() == QEvent.WindowActivate:
             self.refreshStates()
         return False
 
