@@ -36,7 +36,7 @@ tags=vector,georeference,deform,adapt,transform,affine,translate,distort,match,r
 
 homepage=https://github.com/olivierdalang/VectorBender
 tracker=https://github.com/olivierdalang/VectorBender/issues
-repository=git@github.com:olivierdalang/VectorBender.git
+repository=https://github.com/olivierdalang/VectorBender
 icon=resources/icon.png
 # experimental flag
 experimental=False
