@@ -187,7 +187,7 @@ class VectorBender:
                     newListA = []
                     for p in listA:
                         newListA.append( self.transformer.map(p) )
-                    newGeom = QgsGeometry.fromMultiPoint( newListA )
+                    newGeom = QgsGeometry.fromMultiPointXY( newListA )
 
             elif geom.type() == QgsWkbTypes.LineGeometry:
 
