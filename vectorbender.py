@@ -65,7 +65,7 @@ class VectorBender:
 
 
     def initGui(self):
-        
+
         self.action = QAction( QIcon(os.path.join(os.path.dirname(__file__),'resources','icon.png')), "Vector Bender", self.iface.mainWindow())
         self.action.triggered.connect(self.showUi)
         self.iface.addToolBarIcon(self.action)
@@ -79,7 +79,7 @@ class VectorBender:
         if self.aboutWindow is None:
             self.aboutWindow = VectorBenderHelp()
         self.aboutWindow.show()
-        self.aboutWindow.raise_() 
+        self.aboutWindow.raise_()
 
     def unload(self):
         if self.dlg is not None:
@@ -113,7 +113,7 @@ class VectorBender:
             return 0
 
         featuresCount = len(pairsLayer.selectedFeatureIds()) if self.dlg.restrictBox_pairsLayer.isChecked() else len(pairsLayer.allFeatureIds())
-        
+
         if featuresCount == 1:
             return 1
         elif featuresCount == 2:
@@ -127,7 +127,7 @@ class VectorBender:
                 return 4
 
         return 0
-    
+
     def run(self):
 
         self.dlg.progressBar.setValue( 0 )
@@ -179,7 +179,7 @@ class VectorBender:
                 if not geom.isMultipart():
                     # SINGLE PART POINT
                     p = geom.asPoint()
-                    newGeom = QgsGeometry.fromPoint( self.transformer.map(p) )
+                    newGeom = QgsGeometry.fromPointXY( self.transformer.map(p) )
 
                 else:
                     # MULTI PART POINT
@@ -187,7 +187,7 @@ class VectorBender:
                     newListA = []
                     for p in listA:
                         newListA.append( self.transformer.map(p) )
-                    newGeom = QgsGeometry.fromMultiPoint( newListA )
+                    newGeom = QgsGeometry.fromMultiPointXY( newListA )
 
             elif geom.type() == QgsWkbTypes.LineGeometry:
 
@@ -274,4 +274,3 @@ class VectorBender:
         self.dlg.displayMsg( "Finished !" )
         self.dlg.progressBar.setValue( 100 )
         pairsLayer.repaintRequested.emit()
-
